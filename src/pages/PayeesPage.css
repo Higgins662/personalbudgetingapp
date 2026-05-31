@@ -1,0 +1,49 @@
+.payee-tbl-desktop { display: block; }
+.payee-mobile      { display: none; }
+
+@media (max-width: 640px) {
+  .payee-tbl-desktop { display: none; }
+  .payee-mobile      { display: flex; flex-direction: column; gap: .75rem; }
+}
+
+.payee-name {
+  font-size: .875rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.btn-connect {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .25rem .65rem;
+  border-radius: var(--radius-sm);
+  font-family: 'Outfit', sans-serif;
+  font-size: .73rem;
+  font-weight: 600;
+  cursor: not-allowed;
+  border: 1px solid var(--border2);
+  background: var(--card2);
+  color: var(--ink3);
+  opacity: .7;
+  white-space: nowrap;
+}
+
+/* Mobile payee cards */
+.payee-mob-row {
+  padding: .9rem 1rem;
+}
+.payee-mob-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: .35rem;
+}
+.payee-mob-sub {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  flex-wrap: wrap;
+  font-size: .78rem;
+  color: var(--ink3);
+}

@@ -1,0 +1,128 @@
+.ob-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: var(--surface);
+}
+
+.ob-card {
+  width: 100%;
+  max-width: 520px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 2.5rem 2rem;
+}
+
+.ob-steps {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 2.5rem;
+}
+
+.ob-step {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  font-size: .78rem;
+  font-weight: 500;
+  color: var(--ink3);
+  flex: 1;
+  position: relative;
+}
+
+.ob-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: calc(100% - .5rem);
+  top: 50%;
+  transform: translateY(-50%);
+  width: calc(100% - 1.5rem);
+  height: 1px;
+  background: var(--border2);
+  z-index: 0;
+}
+
+.ob-step.active { color: var(--blue); }
+.ob-step.done   { color: var(--green); }
+
+.ob-step-dot {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .72rem; font-weight: 700;
+  background: var(--card);
+  flex-shrink: 0;
+  position: relative; z-index: 1;
+  transition: all .2s;
+}
+
+.ob-step.active .ob-step-dot {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: var(--blue-lt);
+}
+.ob-step.done .ob-step-dot {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--green-lt);
+}
+
+.ob-body { display: flex; flex-direction: column; }
+
+.ob-emoji { font-size: 2.5rem; margin-bottom: .75rem; }
+
+.ob-title {
+  font-size: 1.6rem;
+  margin-bottom: .75rem;
+}
+
+.ob-text {
+  color: var(--ink2);
+  font-size: .9rem;
+  line-height: 1.65;
+  margin-bottom: 1.25rem;
+}
+
+.ob-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  margin-bottom: 1.5rem;
+  padding: .9rem 1rem;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.ob-list li {
+  font-size: .88rem;
+  color: var(--green);
+  font-weight: 500;
+}
+
+.ob-btn {
+  width: 100%;
+  justify-content: center;
+  padding: .75rem;
+  font-size: .95rem;
+}
+
+.ob-btn-row {
+  display: flex;
+  gap: .75rem;
+}
+.ob-btn-row .btn { flex: 1; justify-content: center; }
+
+@media (max-width: 480px) {
+  .ob-card { padding: 2rem 1.25rem; }
+  .ob-step span { display: none; }
+  .ob-step { flex: 0; }
+  .ob-step:not(:last-child)::after { width: 2rem; left: 28px; }
+}

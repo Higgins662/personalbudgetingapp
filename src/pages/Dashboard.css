@@ -1,0 +1,49 @@
+.dash-section {
+  padding: 1.5rem;
+}
+
+.cat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+}
+
+.cat-row {
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+
+.cat-row-hdr {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  font-size: .85rem;
+}
+
+.cat-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cat-name {
+  font-weight: 500;
+  flex: 1;
+  color: var(--ink2);
+}
+
+.cat-amounts {
+  font-size: .8rem;
+}
+
+.cat-pct {
+  font-size: .72rem;
+  padding-left: 1.4rem;
+}
+
+@media (max-width: 480px) {
+  .cat-grid { grid-template-columns: 1fr; }
+  .dash-section { padding: 1.1rem; }
+}

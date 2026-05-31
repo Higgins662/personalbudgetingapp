@@ -1,0 +1,113 @@
+.tbl-desktop { display: block; }
+.tbl-mobile  { display: none; }
+
+@media (max-width: 640px) {
+  .tbl-desktop { display: none; }
+  .tbl-mobile  { display: block; }
+}
+
+/* ── Mobile rows ── */
+.mob-row {
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+.mob-row:last-child { border-bottom: none; }
+
+.mob-row-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .75rem 1rem;
+  cursor: pointer;
+  gap: .5rem;
+  user-select: none;
+}
+.mob-row-main:hover { background: #faf9f6; }
+
+.mob-row-left {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.mob-cat-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mob-label {
+  font-size: .875rem;
+  font-weight: 500;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mob-row-right {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  flex-shrink: 0;
+}
+
+.mob-diff {
+  font-size: .75rem;
+}
+
+.mob-chevron {
+  font-size: .65rem;
+  color: var(--ink3);
+  width: 12px;
+  text-align: center;
+}
+
+.mob-row-detail {
+  padding: .75rem 1rem 1rem;
+  background: var(--card2);
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+
+.mob-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: .84rem;
+  color: var(--ink2);
+}
+.mob-detail-row > span:first-child {
+  color: var(--ink3);
+  font-size: .75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  min-width: 80px;
+}
+
+/* ── Mobile totals footer ── */
+.mob-total {
+  display: flex;
+  justify-content: space-between;
+  padding: .65rem 1rem;
+  background: var(--card2);
+  border-top: 2px solid var(--border2);
+  font-weight: 600;
+  font-size: .84rem;
+}
+
+/* ── Note cell ── */
+.note-cell {
+  color: var(--ink3);
+  font-size: .8rem;
+  font-style: italic;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
