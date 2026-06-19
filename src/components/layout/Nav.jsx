@@ -6,6 +6,7 @@ const TABS = [
   { id: 'income',     label: 'Income' },
   { id: 'monthly',    label: 'Monthly' },
   { id: 'annual',     label: 'Annual' },
+  { id: 'goals',      label: 'Goals' },
   { id: 'categories', label: 'Categories' },
   { id: 'reconcile',  label: 'Reconcile' },
   { id: 'payees',     label: 'Payees' },

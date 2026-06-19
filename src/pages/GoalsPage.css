@@ -1,0 +1,69 @@
+.goals-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.goal-card {
+  padding: 1.25rem;
+}
+
+.goal-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .4rem;
+  gap: .5rem;
+}
+
+.goal-name {
+  font-weight: 600;
+  font-size: .95rem;
+}
+
+/* Short-Term / Long-Term badges — ported from original */
+.t-short { background: var(--blue-lt);   color: var(--blue);   border: 1px solid var(--blue-bd); }
+.t-long  { background: var(--purple-lt); color: var(--purple); border: 1px solid var(--purple-bd); }
+
+.prog-track {
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: .4rem 0;
+}
+.prog-track .prog-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width .4s;
+}
+
+.goal-prog-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: .77rem;
+  color: var(--ink3);
+}
+.goal-prog-row strong { color: var(--ink); }
+
+.goal-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: .8rem;
+  color: var(--ink3);
+  margin-top: .6rem;
+  flex-wrap: wrap;
+}
+.goal-meta strong { color: var(--ink); font-weight: 600; }
+
+.goal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: .6rem;
+}
+
+@media (max-width: 700px) {
+  .goals-grid { grid-template-columns: 1fr; }
+}

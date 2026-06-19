@@ -5,6 +5,7 @@ import {
   DEFAULT_MONTHLY_EXPENSES,
   DEFAULT_ANNUAL_EXPENSES,
 } from './seedData'
+import { DEFAULT_GOALS } from './goalSeedData'
 
 /**
  * Seeds default budget data for a brand-new user.
@@ -60,7 +61,23 @@ export async function seedNewUser(userId) {
   const { error: annErr } = await supabase.from('expense_items').insert(annual)
   if (annErr) return { error: annErr }
 
+  // 5. Insert sample savings goals
+  const { error: goalErr } = await seedSampleGoals(userId)
+  if (goalErr) return { error: goalErr }
+
   return { error: null }
+}
+
+/**
+ * Insert the sample savings goals for a user. Exposed separately so it
+ * can also be triggered from the Goals tab's "Add sample goals" button
+ * for users who cleared their goals and want them back.
+ */
+export async function seedSampleGoals(userId) {
+  const { error } = await supabase
+    .from('savings_goals')
+    .insert(DEFAULT_GOALS.map(g => ({ ...g, user_id: userId })))
+  return { error }
 }
 
 /**

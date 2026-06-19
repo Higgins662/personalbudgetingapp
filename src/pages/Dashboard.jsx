@@ -1,7 +1,7 @@
 import { fmt } from '../lib/format'
 import './Dashboard.css'
 
-export default function Dashboard({ budget }) {
+export default function Dashboard({ budget, goalsHook }) {
   const { totals, categories, monthly, annual, loading } = budget
 
   if (loading) {
@@ -15,6 +15,10 @@ export default function Dashboard({ budget }) {
     savingsRateBudgeted, savingsRateActual,
   } = totals
 
+  const goals = goalsHook?.goals ?? []
+  const goalsLoading = goalsHook?.loading
+  const goalsTotals = goalsHook?.totals ?? { totalMonthly: 0, totalSaved: 0, totalTarget: 0 }
+
   // Build per-category spending summary
   const allExpenses = [...monthly, ...annual.map(e => ({ ...e, budgeted: e.budgeted / 12, actual: e.actual / 12 }))]
   const catSummary  = categories.filter(c => c.enabled).map(cat => {
@@ -24,6 +28,8 @@ export default function Dashboard({ budget }) {
     const pct     = bud > 0 ? Math.min(100, Math.round((act / bud) * 100)) : 0
     return { ...cat, bud, act, pct, count: rows.length }
   }).filter(c => c.bud > 0 || c.act > 0)
+
+  const goalColors = ['#1a3a6b', '#1a6b3a', '#b8860b', '#4a1a6b', '#0a4a4a']
 
   return (
     <div className="fadein">
@@ -50,16 +56,14 @@ export default function Dashboard({ budget }) {
           signed
         />
         <div className="scard">
-          <div className="slabel">Savings Rate</div>
-          <div className="sval" style={{ color: savingsRateActual >= 0 ? 'var(--green)' : 'var(--red)' }}>
-            {savingsRateActual}%
-          </div>
-          <div className="ssub">Budget: {savingsRateBudgeted}%</div>
+          <div className="slabel">Savings / Month</div>
+          <div className="sval v-blue">{fmt(goalsTotals.totalMonthly)}</div>
+          <div className="ssub">toward your goals</div>
         </div>
       </div>
 
       {/* Category breakdown */}
-      <div className="dash-section card">
+      <div className="dash-section card" style={{ marginBottom: '1.5rem' }}>
         <div className="sec-hdr">
           <span className="sec-title">Spending by Category</span>
           <span className="sec-hint">Monthly equivalent</span>
@@ -101,6 +105,37 @@ export default function Dashboard({ budget }) {
           </div>
         )}
       </div>
+
+      {/* Savings goals progress */}
+      {!goalsLoading && goals.length > 0 && (
+        <div className="dash-section card">
+          <div className="sec-hdr">
+            <span className="sec-title">Savings Goals Progress</span>
+            <span className="sec-hint">{fmt(goalsTotals.totalSaved)} of {fmt(goalsTotals.totalTarget)} saved</span>
+          </div>
+          <div className="goal-bars">
+            {goals.map((g, i) => {
+              const pct = g.target > 0 ? Math.min(100, ((g.saved || 0) / g.target) * 100) : 0
+              return (
+                <div key={g.id} className="goal-bar-row">
+                  <div className="goal-bar-hdr">
+                    <span>{g.name}</span>
+                    <span className="mono" style={{ fontSize: '.78rem', color: 'var(--ink3)' }}>
+                      {fmt(g.saved || 0)} / {fmt(g.target || 0)}
+                    </span>
+                  </div>
+                  <div className="prog-bar">
+                    <div
+                      className="prog-fill"
+                      style={{ width: `${pct}%`, background: goalColors[i % goalColors.length] }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

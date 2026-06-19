@@ -43,6 +43,28 @@
   padding-left: 1.4rem;
 }
 
+/* ── Savings goals progress (dashboard) ── */
+.goal-bars {
+  display: flex;
+  flex-direction: column;
+  gap: .9rem;
+}
+
+.goal-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+}
+
+.goal-bar-hdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: .85rem;
+  font-weight: 500;
+  color: var(--ink2);
+}
+
 @media (max-width: 480px) {
   .cat-grid { grid-template-columns: 1fr; }
   .dash-section { padding: 1.1rem; }
