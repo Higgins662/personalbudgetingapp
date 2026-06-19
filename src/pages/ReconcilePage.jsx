@@ -1,29 +1,42 @@
 import { useState, useRef } from 'react'
-import CategoryBadge from '../components/ui/CategoryBadge'
 import { parseCSV, getCSVHeaders, extractTransactions } from '../lib/csvParser'
 import { autoMatch } from '../lib/fuzzyMatch'
 import { fmt } from '../lib/format'
 import './ReconcilePage.css'
 
 export default function ReconcilePage({ budget, transactions: txHook }) {
-  const { categories, monthly, annual, loading: budgetLoading } = budget
+  const { monthly, annual, loading: budgetLoading } = budget
   const { bankAccounts, transactions, insertTransactions, updateBankAccount, addBankAccount,
-          updateTransaction, loading: txLoading } = txHook
+          loading: txLoading } = txHook
 
   const fileRef  = useRef(null)
-  const [stage,  setStage]  = useState('select') // select | map | preview | done
-  const [selAcct, setSelAcct] = useState('')      // chosen bank account id
+  // Stages: bank -> select -> map -> preview -> done
+  const [stage,  setStage]  = useState('bank')
+  const [selAcct, setSelAcct] = useState('')      // chosen existing bank account id
   const [newAcctName, setNewAcctName] = useState('')
+  const [creatingNew, setCreatingNew] = useState(bankAccounts.length === 0)
   const [csvHeaders, setCsvHeaders] = useState([])
   const [csvRows,    setCsvRows]    = useState([])
   const [colMap,     setColMap]     = useState({ dateCol: '', descCol: '', amountCol: '', amountSign: 'negative' })
-  const [preview,    setPreview]    = useState([])  // matched transaction objects
+  const [preview,    setPreview]    = useState([])
   const [saving,     setSaving]     = useState(false)
   const [error,      setError]      = useState('')
 
   const allExpenses = [...monthly, ...annual]
 
-  // ── Stage: select bank account and upload CSV ──────────────────────────────
+  // ── Stage: confirm which bank this import is for ──────────────────────────
+  function handleConfirmBank() {
+    if (creatingNew && !newAcctName.trim()) {
+      setError('Please name this bank account.'); return
+    }
+    if (!creatingNew && !selAcct) {
+      setError('Please select a bank account.'); return
+    }
+    setError('')
+    setStage('select')
+  }
+
+  // ── Stage: upload CSV ──────────────────────────────────────────────────────
   function handleFile(e) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -34,9 +47,9 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
       const rows    = parseCSV(text)
       setCsvHeaders(headers)
       setCsvRows(rows)
-      // Pre-fill colMap from saved mapping if we have an account selected
+
       const acct = bankAccounts.find(b => b.id === selAcct)
-      if (acct?.col_date) {
+      if (!creatingNew && acct?.col_date) {
         setColMap({
           dateCol:    acct.col_date,
           descCol:    acct.col_desc,
@@ -44,7 +57,6 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
           amountSign: acct.amount_sign ?? 'negative',
         })
       } else {
-        // Auto-guess common column names
         const guess = k => headers.find(h => h.toLowerCase().includes(k)) ?? ''
         setColMap({
           dateCol:    guess('date'),
@@ -59,13 +71,12 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
     reader.readAsText(file)
   }
 
-  // ── Stage: column mapping → build preview ─────────────────────────────────
+  // ── Stage: column mapping → build preview ──────────────────────────────────
   function handleBuildPreview() {
     if (!colMap.dateCol || !colMap.descCol || !colMap.amountCol) {
       setError('Please select Date, Description, and Amount columns.'); return
     }
-    const acctId = selAcct || 'new'
-    const raw = extractTransactions(csvRows, colMap, acctId)
+    const raw = extractTransactions(csvRows, colMap, selAcct || 'pending')
     if (!raw.length) { setError('No valid transactions found. Check your column mapping.'); return }
     const matched = autoMatch(raw, allExpenses)
     setPreview(matched)
@@ -73,17 +84,15 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
     setError('')
   }
 
-  // ── Stage: save ───────────────────────────────────────────────────────────
+  // ── Stage: save ──────────────────────────────────────────────────────────
   async function handleSave() {
     setSaving(true)
     setError('')
 
-    // Create bank account if new
     let acctId = selAcct
-    if (!acctId) {
-      const name = newAcctName.trim() || 'Unnamed Account'
+    if (creatingNew) {
       const { data, error } = await addBankAccount({
-        name,
+        name: newAcctName.trim(),
         col_date:    colMap.dateCol,
         col_desc:    colMap.descCol,
         col_amount:  colMap.amountCol,
@@ -92,7 +101,6 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
       if (error) { setError(error.message); setSaving(false); return }
       acctId = data.id
     } else {
-      // Save/update column mapping on existing account
       await updateBankAccount(acctId, {
         col_date:    colMap.dateCol,
         col_desc:    colMap.descCol,
@@ -112,17 +120,26 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
   }
 
   function reset() {
-    setStage('select'); setPreview([]); setCsvRows([]); setCsvHeaders([])
-    setError(''); setNewAcctName('')
+    setStage('bank'); setPreview([]); setCsvRows([]); setCsvHeaders([])
+    setError(''); setNewAcctName(''); setSelAcct('')
+    setCreatingNew(bankAccounts.length === 0)
     if (fileRef.current) fileRef.current.value = ''
+  }
+
+  function startAnotherBank() {
+    // Keep going back to the bank-selection stage so the user can
+    // import a second/third statement without leaving Reconcile.
+    reset()
   }
 
   if (budgetLoading || txLoading) {
     return <div className="loading-center"><span className="spinner" /> Loading…</div>
   }
 
-  // ── Existing transactions summary ─────────────────────────────────────────
   const recentTx = transactions.slice(0, 50)
+  const currentBankName = creatingNew
+    ? newAcctName.trim()
+    : bankAccounts.find(b => b.id === selAcct)?.name
 
   return (
     <div className="fadein">
@@ -131,50 +148,77 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
         <span className="sec-hint">Import bank statements</span>
       </div>
 
-      {/* ── Import wizard ── */}
       <div className="card rec-wizard">
         <div className="rec-wizard-hdr">
-          <StepDot n={1} active={stage === 'select'} done={stage !== 'select'} label="Upload" />
+          <StepDot n={1} active={stage === 'bank'}    done={stage !== 'bank'} label="Bank" />
           <div className="rec-line" />
-          <StepDot n={2} active={stage === 'map'} done={['preview','done'].includes(stage)} label="Map" />
+          <StepDot n={2} active={stage === 'select'}  done={['map','preview','done'].includes(stage)} label="Upload" />
           <div className="rec-line" />
-          <StepDot n={3} active={stage === 'preview'} done={stage === 'done'} label="Review" />
+          <StepDot n={3} active={stage === 'map'}     done={['preview','done'].includes(stage)} label="Map" />
           <div className="rec-line" />
-          <StepDot n={4} active={false} done={stage === 'done'} label="Done" />
+          <StepDot n={4} active={stage === 'preview'} done={stage === 'done'} label="Review" />
+          <div className="rec-line" />
+          <StepDot n={5} active={false} done={stage === 'done'} label="Done" />
         </div>
 
         {error && <div className="alert alert-error" style={{ margin: '1rem 1.25rem 0' }}>{error}</div>}
 
-        {/* Stage: select */}
-        {stage === 'select' && (
+        {/* Stage: bank selection — required first step */}
+        {stage === 'bank' && (
           <div className="rec-body fadein">
-            <div className="fg" style={{ marginBottom: '1rem' }}>
-              <label>Bank account</label>
-              <select value={selAcct} onChange={e => setSelAcct(e.target.value)}>
-                <option value="">+ New bank account</option>
-                {bankAccounts.map(b => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-              </select>
-            </div>
+            <p className="rec-map-hint">
+              Every import needs to be tied to a bank account so we can keep your statements organized
+              and remember each bank's column layout.
+            </p>
 
-            {!selAcct && (
+            {bankAccounts.length > 0 && (
               <div className="fg" style={{ marginBottom: '1rem' }}>
-                <label>Account name</label>
+                <label>Which bank is this statement from?</label>
+                <select
+                  value={creatingNew ? '__new__' : selAcct}
+                  onChange={e => {
+                    if (e.target.value === '__new__') { setCreatingNew(true); setSelAcct('') }
+                    else { setCreatingNew(false); setSelAcct(e.target.value) }
+                  }}
+                >
+                  <option value="">— Select a bank —</option>
+                  {bankAccounts.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                  <option value="__new__">+ Add a new bank account</option>
+                </select>
+              </div>
+            )}
+
+            {(creatingNew || bankAccounts.length === 0) && (
+              <div className="fg" style={{ marginBottom: '1rem' }}>
+                <label>New bank account name</label>
                 <input
                   value={newAcctName}
                   onChange={e => setNewAcctName(e.target.value)}
                   placeholder="e.g. Chase Checking"
+                  autoFocus
                 />
               </div>
             )}
 
+            <button className="btn btn-p" onClick={handleConfirmBank}>Continue →</button>
+          </div>
+        )}
+
+        {/* Stage: upload CSV */}
+        {stage === 'select' && (
+          <div className="rec-body fadein">
+            <div className="alert alert-info" style={{ marginBottom: '1rem', fontSize: '.83rem' }}>
+              Importing for <strong>{currentBankName}</strong>
+            </div>
             <div className="rec-upload-area" onClick={() => fileRef.current?.click()}>
               <div className="rec-upload-icon">📄</div>
               <div className="rec-upload-label">Click to upload a CSV bank statement</div>
               <div className="rec-upload-hint">Exported from your bank's website or app</div>
               <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} style={{ display: 'none' }} />
             </div>
+            <button className="btn btn-g" style={{ marginTop: '1rem' }} onClick={() => setStage('bank')}>← Back</button>
           </div>
         )}
 
@@ -182,7 +226,7 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
         {stage === 'map' && (
           <div className="rec-body fadein">
             <p className="rec-map-hint">
-              Found <strong>{csvRows.length}</strong> rows.
+              Found <strong>{csvRows.length}</strong> rows for <strong>{currentBankName}</strong>.
               Map each column from your CSV to what it represents.
             </p>
             <div className="fgrid">
@@ -214,7 +258,6 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
               </div>
             </div>
 
-            {/* Preview first 3 rows */}
             {csvRows.length > 0 && (
               <div className="rec-sample">
                 <div className="rec-sample-label">First 3 rows of your CSV</div>
@@ -237,7 +280,7 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
 
             <div style={{ display: 'flex', gap: '.5rem', marginTop: '1rem' }}>
               <button className="btn btn-p" onClick={handleBuildPreview}>Preview transactions →</button>
-              <button className="btn btn-g" onClick={reset}>Back</button>
+              <button className="btn btn-g" onClick={() => setStage('select')}>← Back</button>
             </div>
           </div>
         )}
@@ -246,7 +289,7 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
         {stage === 'preview' && (
           <div className="rec-body fadein">
             <p className="rec-map-hint">
-              <strong>{preview.filter(t => !t._skip).length}</strong> transactions ready to import.
+              <strong>{preview.filter(t => !t._skip).length}</strong> transactions ready to import for <strong>{currentBankName}</strong>.
               Matched <strong>{preview.filter(t => t.matched_expense_id).length}</strong> to budget items automatically.
             </p>
 
@@ -287,7 +330,7 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
               <button className="btn btn-p" onClick={handleSave} disabled={saving}>
                 {saving ? <><span className="spinner" style={{ width: 14, height: 14 }} /> Saving…</> : 'Import transactions'}
               </button>
-              <button className="btn btn-g" onClick={() => setStage('map')}>Back</button>
+              <button className="btn btn-g" onClick={() => setStage('map')}>← Back</button>
             </div>
           </div>
         )}
@@ -298,9 +341,9 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
             <div style={{ fontSize: '2.5rem', marginBottom: '.75rem' }}>✅</div>
             <div style={{ fontWeight: 600, marginBottom: '.4rem' }}>Import complete!</div>
             <p style={{ color: 'var(--ink3)', fontSize: '.875rem', marginBottom: '1.25rem' }}>
-              Your transactions have been saved and matched to budget items.
+              Transactions for <strong>{currentBankName}</strong> have been saved and matched to budget items.
             </p>
-            <button className="btn btn-p" onClick={reset}>Import another statement</button>
+            <button className="btn btn-p" onClick={startAnotherBank}>Import another statement</button>
           </div>
         )}
       </div>

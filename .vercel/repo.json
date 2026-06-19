@@ -1,0 +1,11 @@
+{
+  "remoteName": "origin",
+  "projects": [
+    {
+      "id": "prj_jdiElpvuZuJVA9Dr2gHFFOWk4buJ",
+      "name": "personalbudgetingapp-pcj2",
+      "directory": ".",
+      "orgId": "team_iOhOMveas6LS0j0e2tVw5Xsk"
+    }
+  ]
+}
