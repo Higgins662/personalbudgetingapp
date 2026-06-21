@@ -1,8 +1,9 @@
 import BudgetTable from '../components/ui/BudgetTable'
 import { fmt } from '../lib/format'
 
-export default function AnnualPage({ budget }) {
+export default function AnnualPage({ budget, transactions }) {
   const { annual, categories, updateAnnual, addAnnual, deleteAnnual, totals, loading } = budget
+  const bankAccounts = transactions?.bankAccounts ?? []
 
   if (loading) return <div className="loading-center"><span className="spinner" /> Loading…</div>
 
@@ -23,13 +24,21 @@ export default function AnnualPage({ budget }) {
         Annual expenses are divided by 12 and included in your monthly budget totals.
       </div>
 
+      {bankAccounts.length === 0 && (
+        <div className="alert alert-info" style={{ marginBottom: '1rem', fontSize: '.83rem' }}>
+          Add a bank account in <strong>Reconcile</strong> to assign payment methods to your annual expenses.
+        </div>
+      )}
+
       <div className="tbl-wrap">
         <BudgetTable
           rows={annual}
           categories={categories}
+          bankAccounts={bankAccounts}
           onUpdate={updateAnnual}
           onAdd={addAnnual}
           onDelete={deleteAnnual}
+          showPaymentMethod
           addLabel="+ Add annual expense"
           emptyMessage="No annual expenses yet."
         />

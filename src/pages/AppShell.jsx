@@ -21,14 +21,14 @@ export default function AppShell() {
   function renderTab() {
     switch (activeTab) {
       case 'dashboard':  return <Dashboard  budget={budget} goalsHook={goalsHook} />
-      case 'income':     return <IncomePage budget={budget} />
-      case 'monthly':    return <MonthlyPage budget={budget} />
-      case 'annual':     return <AnnualPage  budget={budget} />
+      case 'income':     return <IncomePage budget={budget} transactions={transactions} />
+      case 'monthly':    return <MonthlyPage budget={budget} transactions={transactions} />
+      case 'annual':     return <AnnualPage  budget={budget} transactions={transactions} />
       case 'goals':      return <GoalsPage goalsHook={goalsHook} />
       case 'categories': return <CategoriesPage budget={budget} />
       case 'reconcile':  return <ReconcilePage budget={budget} transactions={transactions} />
       case 'payees':     return <PayeesPage transactions={transactions} />
-      default:           return <Dashboard budget={budget} />
+      default:           return <Dashboard budget={budget} goalsHook={goalsHook} />
     }
   }
 

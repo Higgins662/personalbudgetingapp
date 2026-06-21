@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import EditableCell from '../ui/EditableCell'
 import CategoryBadge from '../ui/CategoryBadge'
+import PaymentMethodBadge from '../ui/PaymentMethodBadge'
 import { fmt } from '../../lib/format'
 import './BudgetTable.css'
 
@@ -8,24 +9,29 @@ import './BudgetTable.css'
  * Reusable budget table used for Income, Monthly Expenses, and Annual Expenses.
  *
  * Props:
- *   rows          — array of row objects
- *   categories    — all categories (for badge picker)
- *   onUpdate      — (id, field, value) => void
- *   onAdd         — (newRow) => void
- *   onDelete      — (id) => void
- *   showCategory  — bool (default true)
- *   showNote      — bool (default true)
- *   isIncome      — bool — changes totals display
- *   addLabel      — string for the "add row" button
- *   emptyMessage  — string shown when rows is empty
+ *   rows               — array of row objects
+ *   categories         — all categories (for badge picker)
+ *   bankAccounts       — all bank accounts (for payment method picker) — optional
+ *   onUpdate           — (id, field, value) => void
+ *   onAdd              — (newRow) => void
+ *   onDelete           — (id) => void
+ *   showCategory       — bool (default true)
+ *   showPaymentMethod  — bool (default false) — shows a bank-account picker per row
+ *   showNote           — bool (default true)
+ *   isIncome           — bool — changes totals display
+ *   addLabel           — string for the "add row" button
+ *   emptyMessage       — string shown when rows is empty
  */
 export default function BudgetTable({
   rows = [],
   categories = [],
+  bankAccounts = [],
   onUpdate,
   onAdd,
   onDelete,
   showCategory = true,
+  showPaymentMethod = false,
+  paymentMethodLabel = 'Payment Method',
   showNote = true,
   isIncome = false,
   addLabel = '+ Add row',
@@ -36,6 +42,7 @@ export default function BudgetTable({
   const [newBud,   setNewBud]   = useState('')
   const [newNote,  setNewNote]  = useState('')
   const [newCat,   setNewCat]   = useState('')
+  const [newBank,  setNewBank]  = useState('')
 
   const totalBudgeted = rows.reduce((s, r) => s + (r.budgeted || 0), 0)
   const totalActual   = rows.reduce((s, r) => s + (r.actual   || 0), 0)
@@ -48,9 +55,12 @@ export default function BudgetTable({
       actual:      0,
       note:        newNote.trim(),
       category_id: newCat || null,
+      ...(showPaymentMethod ? { bank_account_id: newBank || null } : {}),
     })
-    setNewLabel(''); setNewBud(''); setNewNote(''); setNewCat(''); setShowAdd(false)
+    setNewLabel(''); setNewBud(''); setNewNote(''); setNewCat(''); setNewBank(''); setShowAdd(false)
   }
+
+  const colCount = 4 + (showCategory ? 1 : 0) + (showPaymentMethod ? 1 : 0) + (showNote ? 1 : 0) + 1
 
   return (
     <div>
@@ -59,8 +69,9 @@ export default function BudgetTable({
         <table>
           <thead>
             <tr>
-              <th style={{ width: '35%' }}>Description</th>
+              <th style={{ width: '30%' }}>Description</th>
               {showCategory && <th>Category</th>}
+              {showPaymentMethod && <th>{paymentMethodLabel}</th>}
               <th className="r">Budgeted</th>
               <th className="r">Actual</th>
               <th className="r">Difference</th>
@@ -71,7 +82,7 @@ export default function BudgetTable({
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', color: 'var(--ink3)', padding: '1.5rem' }}>
+                <td colSpan={colCount} style={{ textAlign: 'center', color: 'var(--ink3)', padding: '1.5rem' }}>
                   {emptyMessage}
                 </td>
               </tr>
@@ -94,6 +105,15 @@ export default function BudgetTable({
                         categoryId={row.category_id}
                         categories={categories}
                         onSelect={id => onUpdate(row.id, 'category_id', id)}
+                      />
+                    </td>
+                  )}
+                  {showPaymentMethod && (
+                    <td>
+                      <PaymentMethodBadge
+                        bankAccountId={row.bank_account_id}
+                        bankAccounts={bankAccounts}
+                        onSelect={id => onUpdate(row.id, 'bank_account_id', id)}
                       />
                     </td>
                   )}
@@ -141,6 +161,7 @@ export default function BudgetTable({
           <tfoot>
             <tr>
               <td colSpan={showCategory ? 2 : 1}>Total</td>
+              {showPaymentMethod && <td />}
               <td className="r">{fmt(totalBudgeted)}</td>
               <td className="r">{fmt(totalActual)}</td>
               <td className="r">
@@ -172,7 +193,10 @@ export default function BudgetTable({
               row={row}
               diff={diff}
               categories={categories}
+              bankAccounts={bankAccounts}
               showCategory={showCategory}
+              showPaymentMethod={showPaymentMethod}
+              paymentMethodLabel={paymentMethodLabel}
               onUpdate={onUpdate}
               onDelete={onDelete}
             />
@@ -222,6 +246,17 @@ export default function BudgetTable({
                 </select>
               </div>
             )}
+            {showPaymentMethod && (
+              <div className="fg">
+                <label>{paymentMethodLabel}</label>
+                <select value={newBank} onChange={e => setNewBank(e.target.value)}>
+                  <option value="">— Unassigned —</option>
+                  {bankAccounts.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             {showNote && (
               <div className="fg">
                 <label>Note</label>
@@ -245,9 +280,10 @@ export default function BudgetTable({
   )
 }
 
-function MobileRow({ row, diff, categories, showCategory, onUpdate, onDelete }) {
+function MobileRow({ row, diff, categories, bankAccounts, showCategory, showPaymentMethod, paymentMethodLabel = 'Payment', onUpdate, onDelete }) {
   const [expanded, setExpanded] = useState(false)
-  const cat = categories.find(c => c.id === row.category_id)
+  const cat  = categories.find(c => c.id === row.category_id)
+  const bank = bankAccounts.find(b => b.id === row.bank_account_id)
 
   return (
     <div className="mob-row">
@@ -295,6 +331,16 @@ function MobileRow({ row, diff, categories, showCategory, onUpdate, onDelete }) 
                 categoryId={row.category_id}
                 categories={categories}
                 onSelect={id => onUpdate(row.id, 'category_id', id)}
+              />
+            </div>
+          )}
+          {showPaymentMethod && (
+            <div className="mob-detail-row">
+              <span>{paymentMethodLabel}</span>
+              <PaymentMethodBadge
+                bankAccountId={row.bank_account_id}
+                bankAccounts={bankAccounts}
+                onSelect={id => onUpdate(row.id, 'bank_account_id', id)}
               />
             </div>
           )}

@@ -1,8 +1,9 @@
 import BudgetTable from '../components/ui/BudgetTable'
 import { fmt } from '../lib/format'
 
-export default function IncomePage({ budget }) {
+export default function IncomePage({ budget, transactions }) {
   const { income, categories, updateIncome, addIncome, deleteIncome, totals, loading } = budget
+  const bankAccounts = transactions?.bankAccounts ?? []
 
   if (loading) return <div className="loading-center"><span className="spinner" /> Loading…</div>
 
@@ -17,14 +18,23 @@ export default function IncomePage({ budget }) {
         </span>
       </div>
 
+      {bankAccounts.length === 0 && (
+        <div className="alert alert-info" style={{ marginBottom: '1rem', fontSize: '.83rem' }}>
+          Add a bank account in <strong>Reconcile</strong> to track which account each income source deposits into.
+        </div>
+      )}
+
       <div className="tbl-wrap">
         <BudgetTable
           rows={income}
           categories={categories}
+          bankAccounts={bankAccounts}
           onUpdate={updateIncome}
           onAdd={addIncome}
           onDelete={deleteIncome}
           showCategory={false}
+          showPaymentMethod
+          paymentMethodLabel="Deposit Account"
           isIncome
           addLabel="+ Add income source"
           emptyMessage="No income sources yet. Add one below."
