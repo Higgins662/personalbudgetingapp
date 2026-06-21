@@ -8,10 +8,35 @@ import { useState, useRef, useEffect } from 'react'
  */
 export default function PaymentMethodBadge({ bankAccountId, bankAccounts, onSelect, readOnly = false }) {
   const [open, setOpen] = useState(false)
+  const [coords, setCoords] = useState({ top: 0, left: 0 })
   const ref = useRef(null)
   const popRef = useRef(null)
 
   const acct = bankAccounts.find(b => b.id === bankAccountId)
+
+  function handleToggle() {
+    if (readOnly) return
+    if (!open && ref.current) {
+      const rect = ref.current.getBoundingClientRect()
+      const popWidth = 200
+      const margin = 8
+
+      let left = rect.left
+      let top = rect.bottom + 4
+
+      if (left + popWidth > window.innerWidth - margin) {
+        left = window.innerWidth - popWidth - margin
+      }
+      const estimatedHeight = 260
+      if (top + estimatedHeight > window.innerHeight - margin) {
+        top = rect.top - estimatedHeight - 4
+        if (top < margin) top = margin
+      }
+
+      setCoords({ top, left })
+    }
+    setOpen(o => !o)
+  }
 
   useEffect(() => {
     if (!open) return
@@ -21,8 +46,16 @@ export default function PaymentMethodBadge({ bankAccountId, bankAccounts, onSele
         setOpen(false)
       }
     }
+    function handleReflow() { setOpen(false) }
+
     document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
+    window.addEventListener('scroll', handleReflow, true)
+    window.addEventListener('resize', handleReflow)
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+      window.removeEventListener('scroll', handleReflow, true)
+      window.removeEventListener('resize', handleReflow)
+    }
   }, [open])
 
   function handleSelect(id) {
@@ -34,14 +67,18 @@ export default function PaymentMethodBadge({ bankAccountId, bankAccounts, onSele
     <div style={{ position: 'relative', display: 'inline-block' }} ref={ref}>
       <span
         className="badge pay-badge"
-        onClick={() => !readOnly && setOpen(o => !o)}
+        onClick={handleToggle}
         title={readOnly ? undefined : 'Click to change payment method'}
       >
         🏦 {acct?.name ?? 'Unassigned'}
       </span>
 
       {open && (
-        <div className="popover" ref={popRef} style={{ top: '110%', left: 0, zIndex: 400 }}>
+        <div
+          className="popover"
+          ref={popRef}
+          style={{ position: 'fixed', top: coords.top, left: coords.left, zIndex: 1000 }}
+        >
           <div
             className="pop-item"
             onClick={() => handleSelect(null)}

@@ -2,10 +2,37 @@ import { useState, useRef, useEffect } from 'react'
 
 export default function CategoryBadge({ categoryId, categories, onSelect, readOnly = false }) {
   const [open, setOpen] = useState(false)
+  const [coords, setCoords] = useState({ top: 0, left: 0 })
   const ref = useRef(null)
   const popRef = useRef(null)
 
   const cat = categories.find(c => c.id === categoryId)
+
+  function handleToggle() {
+    if (readOnly) return
+    if (!open && ref.current) {
+      const rect = ref.current.getBoundingClientRect()
+      const popWidth = 200 // matches .popover min-width + a little padding
+      const margin = 8
+
+      let left = rect.left
+      let top = rect.bottom + 4
+
+      // Keep popover on-screen horizontally
+      if (left + popWidth > window.innerWidth - margin) {
+        left = window.innerWidth - popWidth - margin
+      }
+      // If there's not enough room below, open upward instead
+      const estimatedHeight = 260
+      if (top + estimatedHeight > window.innerHeight - margin) {
+        top = rect.top - estimatedHeight - 4
+        if (top < margin) top = margin // clamp if neither direction has room
+      }
+
+      setCoords({ top, left })
+    }
+    setOpen(o => !o)
+  }
 
   useEffect(() => {
     if (!open) return
@@ -15,8 +42,17 @@ export default function CategoryBadge({ categoryId, categories, onSelect, readOn
         setOpen(false)
       }
     }
+    // Reposition on scroll/resize instead of leaving a stale popover floating
+    function handleReflow() { setOpen(false) }
+
     document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
+    window.addEventListener('scroll', handleReflow, true)
+    window.addEventListener('resize', handleReflow)
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+      window.removeEventListener('scroll', handleReflow, true)
+      window.removeEventListener('resize', handleReflow)
+    }
   }, [open])
 
   const style = cat
@@ -33,7 +69,7 @@ export default function CategoryBadge({ categoryId, categories, onSelect, readOn
       <span
         className={`badge${cat?.enabled === false ? ' disabled-cat' : ''}`}
         style={style}
-        onClick={() => !readOnly && setOpen(o => !o)}
+        onClick={handleToggle}
         title={readOnly ? undefined : 'Click to change category'}
       >
         <span
@@ -47,7 +83,11 @@ export default function CategoryBadge({ categoryId, categories, onSelect, readOn
       </span>
 
       {open && (
-        <div className="popover" ref={popRef} style={{ top: '110%', left: 0, zIndex: 400 }}>
+        <div
+          className="popover"
+          ref={popRef}
+          style={{ position: 'fixed', top: coords.top, left: coords.left, zIndex: 1000 }}
+        >
           <div
             className="pop-item"
             onClick={() => handleSelect(null)}
