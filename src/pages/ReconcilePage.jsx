@@ -2,17 +2,20 @@ import { useState, useRef } from 'react'
 import { parseCSV, getCSVHeaders, extractTransactions } from '../lib/csvParser'
 import { autoMatch } from '../lib/fuzzyMatch'
 import { fmt } from '../lib/format'
+import { usePayeeRules } from '../hooks/usePayeeRules'
+import { useGlobalPatterns } from '../hooks/useGlobalPatterns'
 import './ReconcilePage.css'
 
 export default function ReconcilePage({ budget, transactions: txHook }) {
-  const { monthly, annual, loading: budgetLoading } = budget
+  const { monthly, annual, categories, loading: budgetLoading } = budget
   const { bankAccounts, transactions, insertTransactions, updateBankAccount, addBankAccount,
-          loading: txLoading } = txHook
+          updateTransaction, loading: txLoading } = txHook
+  const { rules: personalRules, learnRule } = usePayeeRules()
+  const { patterns: globalPatterns, contribute } = useGlobalPatterns()
 
   const fileRef  = useRef(null)
-  // Stages: bank -> select -> map -> preview -> done
   const [stage,  setStage]  = useState('bank')
-  const [selAcct, setSelAcct] = useState('')      // chosen existing bank account id
+  const [selAcct, setSelAcct] = useState('')
   const [newAcctName, setNewAcctName] = useState('')
   const [creatingNew, setCreatingNew] = useState(bankAccounts.length === 0)
   const [csvHeaders, setCsvHeaders] = useState([])
@@ -24,7 +27,6 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
 
   const allExpenses = [...monthly, ...annual]
 
-  // ── Stage: confirm which bank this import is for ──────────────────────────
   function handleConfirmBank() {
     if (creatingNew && !newAcctName.trim()) {
       setError('Please name this bank account.'); return
@@ -36,7 +38,6 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
     setStage('select')
   }
 
-  // ── Stage: upload CSV ──────────────────────────────────────────────────────
   function handleFile(e) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -71,20 +72,45 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
     reader.readAsText(file)
   }
 
-  // ── Stage: column mapping → build preview ──────────────────────────────────
   function handleBuildPreview() {
     if (!colMap.dateCol || !colMap.descCol || !colMap.amountCol) {
       setError('Please select Date, Description, and Amount columns.'); return
     }
     const raw = extractTransactions(csvRows, colMap, selAcct || 'pending')
     if (!raw.length) { setError('No valid transactions found. Check your column mapping.'); return }
-    const matched = autoMatch(raw, allExpenses)
+    const matched = autoMatch(raw, allExpenses, personalRules, globalPatterns)
     setPreview(matched)
     setStage('preview')
     setError('')
   }
 
-  // ── Stage: save ──────────────────────────────────────────────────────────
+  /** User manually picks an expense item for a preview row — learns a rule + contributes globally */
+  async function handleAssignMatch(index, expenseItemId) {
+    const tx = preview[index]
+    const expenseItem = allExpenses.find(e => e.id === expenseItemId)
+
+    setPreview(prev => prev.map((t, i) => i === index
+      ? { ...t, matched_expense_id: expenseItemId, matched_score: 1, matched_source: 'manual',
+          suggested_category_name: undefined, suggested_pattern: undefined, suggested_hit_count: undefined }
+      : t))
+
+    if (expenseItem) {
+      learnRule(tx.description, expenseItemId)
+      const cat = categories.find(c => c.id === expenseItem.category_id)
+      if (cat) contribute(tx.description, cat.name)
+    }
+  }
+
+  /** User accepts a global suggestion chip — needs them to confirm which of THEIR expense items it maps to */
+  function handleAcceptSuggestion(index) {
+    // Filter the user's own expense items down to the suggested category to make the choice fast
+    const tx = preview[index]
+    const suggestedCat = categories.find(c => c.name === tx.suggested_category_name)
+    setPreview(prev => prev.map((t, i) => i === index
+      ? { ...t, _showAssignFor: suggestedCat?.id ?? true }
+      : t))
+  }
+
   async function handleSave() {
     setSaving(true)
     setError('')
@@ -111,7 +137,8 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
 
     const toInsert = preview
       .filter(t => !t._skip)
-      .map(t => ({ ...t, bank_account_id: acctId }))
+      .map(({ _showAssignFor, suggested_category_name, suggested_pattern, suggested_hit_count, matched_source, ...t }) =>
+        ({ ...t, bank_account_id: acctId }))
 
     const { error } = await insertTransactions(toInsert)
     setSaving(false)
@@ -126,11 +153,7 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
     if (fileRef.current) fileRef.current.value = ''
   }
 
-  function startAnotherBank() {
-    // Keep going back to the bank-selection stage so the user can
-    // import a second/third statement without leaving Reconcile.
-    reset()
-  }
+  function startAnotherBank() { reset() }
 
   if (budgetLoading || txLoading) {
     return <div className="loading-center"><span className="spinner" /> Loading…</div>
@@ -140,6 +163,10 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
   const currentBankName = creatingNew
     ? newAcctName.trim()
     : bankAccounts.find(b => b.id === selAcct)?.name
+
+  const ruleMatchCount   = preview.filter(t => t.matched_source === 'rule').length
+  const fuzzyMatchCount  = preview.filter(t => t.matched_source === 'fuzzy').length
+  const suggestionCount  = preview.filter(t => t.matched_source === 'global').length
 
   return (
     <div className="fadein">
@@ -163,7 +190,6 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
 
         {error && <div className="alert alert-error" style={{ margin: '1rem 1.25rem 0' }}>{error}</div>}
 
-        {/* Stage: bank selection — required first step */}
         {stage === 'bank' && (
           <div className="rec-body fadein">
             <p className="rec-map-hint">
@@ -206,7 +232,6 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
           </div>
         )}
 
-        {/* Stage: upload CSV */}
         {stage === 'select' && (
           <div className="rec-body fadein">
             <div className="alert alert-info" style={{ marginBottom: '1rem', fontSize: '.83rem' }}>
@@ -222,7 +247,6 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
           </div>
         )}
 
-        {/* Stage: map columns */}
         {stage === 'map' && (
           <div className="rec-body fadein">
             <p className="rec-map-hint">
@@ -285,17 +309,27 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
           </div>
         )}
 
-        {/* Stage: preview */}
         {stage === 'preview' && (
           <div className="rec-body fadein">
             <p className="rec-map-hint">
               <strong>{preview.filter(t => !t._skip).length}</strong> transactions ready to import for <strong>{currentBankName}</strong>.
-              Matched <strong>{preview.filter(t => t.matched_expense_id).length}</strong> to budget items automatically.
             </p>
+            <div className="rec-match-stats">
+              {ruleMatchCount > 0 && <span className="rec-stat rec-stat-rule">🎯 {ruleMatchCount} from your rules</span>}
+              {fuzzyMatchCount > 0 && <span className="rec-stat rec-stat-fuzzy">✓ {fuzzyMatchCount} matched</span>}
+              {suggestionCount > 0 && <span className="rec-stat rec-stat-global">💡 {suggestionCount} suggested</span>}
+            </div>
 
             <div className="rec-preview-list">
               {preview.map((tx, i) => {
                 const matched = allExpenses.find(e => e.id === tx.matched_expense_id)
+                const suggestedCat = tx.suggested_category_name
+                  ? categories.find(c => c.name === tx.suggested_category_name)
+                  : null
+                const candidateExpenses = suggestedCat
+                  ? allExpenses.filter(e => e.category_id === suggestedCat.id)
+                  : []
+
                 return (
                   <div key={i} className={`rec-tx${tx._skip ? ' rec-tx-skip' : ''}`}>
                     <div className="rec-tx-main">
@@ -316,9 +350,73 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
                         </button>
                       </div>
                     </div>
-                    {matched && (
+
+                    {matched && tx.matched_source === 'rule' && (
+                      <div className="rec-tx-match rec-tx-match-rule">
+                        🎯 Auto-matched from your rules to <strong>{matched.label}</strong>
+                      </div>
+                    )}
+                    {matched && tx.matched_source === 'fuzzy' && (
                       <div className="rec-tx-match">
                         ✓ Matched to <strong>{matched.label}</strong>
+                      </div>
+                    )}
+                    {matched && tx.matched_source === 'manual' && (
+                      <div className="rec-tx-match rec-tx-match-rule">
+                        ✓ Assigned to <strong>{matched.label}</strong> — rule saved for next time
+                      </div>
+                    )}
+
+                    {!matched && tx.suggested_category_name && !tx._showAssignFor && (
+                      <div className="rec-tx-suggestion">
+                        <span>
+                          💡 Others categorize this as <strong>{tx.suggested_category_name}</strong>
+                          {tx.suggested_hit_count > 1 ? ` (${tx.suggested_hit_count} users)` : ''}
+                        </span>
+                        <button
+                          className="btn btn-g"
+                          style={{ padding: '.18rem .5rem', fontSize: '.72rem' }}
+                          onClick={() => handleAcceptSuggestion(i)}
+                        >
+                          Apply
+                        </button>
+                      </div>
+                    )}
+
+                    {!matched && tx._showAssignFor && (
+                      <div className="rec-tx-assign">
+                        <span style={{ fontSize: '.78rem', color: 'var(--ink3)' }}>
+                          Which {tx.suggested_category_name} item is this?
+                        </span>
+                        <select
+                          className="cell-select"
+                          defaultValue=""
+                          onChange={e => e.target.value && handleAssignMatch(i, e.target.value)}
+                        >
+                          <option value="" disabled>Select…</option>
+                          {candidateExpenses.map(e => (
+                            <option key={e.id} value={e.id}>{e.label}</option>
+                          ))}
+                          {candidateExpenses.length === 0 && (
+                            <option value="" disabled>No items in this category yet</option>
+                          )}
+                        </select>
+                      </div>
+                    )}
+
+                    {!matched && !tx.suggested_category_name && (
+                      <div className="rec-tx-assign">
+                        <span style={{ fontSize: '.78rem', color: 'var(--ink3)' }}>No match — assign manually:</span>
+                        <select
+                          className="cell-select"
+                          defaultValue=""
+                          onChange={e => e.target.value && handleAssignMatch(i, e.target.value)}
+                        >
+                          <option value="" disabled>Select…</option>
+                          {allExpenses.map(e => (
+                            <option key={e.id} value={e.id}>{e.label}</option>
+                          ))}
+                        </select>
                       </div>
                     )}
                   </div>
@@ -335,7 +433,6 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
           </div>
         )}
 
-        {/* Stage: done */}
         {stage === 'done' && (
           <div className="rec-body fadein" style={{ textAlign: 'center' }}>
             <div style={{ fontSize: '2.5rem', marginBottom: '.75rem' }}>✅</div>
@@ -348,7 +445,6 @@ export default function ReconcilePage({ budget, transactions: txHook }) {
         )}
       </div>
 
-      {/* ── Recent transactions ── */}
       {recentTx.length > 0 && (
         <div style={{ marginTop: '2rem' }}>
           <div className="sec-hdr">
