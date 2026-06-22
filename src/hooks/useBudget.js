@@ -2,11 +2,6 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
-/**
- * Central data hook. Loads income_items, expense_items, and categories
- * for the current user. Exposes CRUD helpers that optimistically update
- * local state then persist to Supabase.
- */
 export function useBudget() {
   const { user } = useAuth()
 
@@ -17,7 +12,6 @@ export function useBudget() {
   const [loading,    setLoading]    = useState(true)
   const [error,      setError]      = useState(null)
 
-  // ── Load all data ──────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     if (!user) return
     setLoading(true)
@@ -41,21 +35,19 @@ export function useBudget() {
 
   useEffect(() => { load() }, [load])
 
-  // ── Generic cell update helper ─────────────────────────────────────────────
   async function updateCell(table, id, field, value, setFn) {
-    // Optimistic update
     setFn(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r))
     const { error } = await supabase.from(table).update({ [field]: value }).eq('id', id)
-    if (error) { load(); return { error } } // revert on failure
+    if (error) { load(); return { error } }
     return { error: null }
   }
 
-  // ── Income ─────────────────────────────────────────────────────────────────
+  // ── Income ────────────────────────────────────────────────────────────────
   const updateIncome = (id, field, value) =>
     updateCell('income_items', id, field, value, setIncome)
 
   async function addIncome(row) {
-    const newRow = { ...row, user_id: user.id, sort_order: income.length }
+    const newRow = { ...row, user_id: user.id, sort_order: income.length, enabled: true }
     const { data, error } = await supabase.from('income_items').insert(newRow).select().single()
     if (!error) setIncome(prev => [...prev, data])
     return { error }
@@ -66,12 +58,12 @@ export function useBudget() {
     await supabase.from('income_items').delete().eq('id', id)
   }
 
-  // ── Monthly expenses ───────────────────────────────────────────────────────
+  // ── Monthly expenses ──────────────────────────────────────────────────────
   const updateMonthly = (id, field, value) =>
     updateCell('expense_items', id, field, value, setMonthly)
 
   async function addMonthly(row) {
-    const newRow = { ...row, user_id: user.id, frequency: 'monthly', sort_order: monthly.length }
+    const newRow = { ...row, user_id: user.id, frequency: 'monthly', sort_order: monthly.length, enabled: true }
     const { data, error } = await supabase.from('expense_items').insert(newRow).select().single()
     if (!error) setMonthly(prev => [...prev, data])
     return { error }
@@ -82,12 +74,12 @@ export function useBudget() {
     await supabase.from('expense_items').delete().eq('id', id)
   }
 
-  // ── Annual expenses ────────────────────────────────────────────────────────
+  // ── Annual expenses ───────────────────────────────────────────────────────
   const updateAnnual = (id, field, value) =>
     updateCell('expense_items', id, field, value, setAnnual)
 
   async function addAnnual(row) {
-    const newRow = { ...row, user_id: user.id, frequency: 'annual', sort_order: annual.length }
+    const newRow = { ...row, user_id: user.id, frequency: 'annual', sort_order: annual.length, enabled: true }
     const { data, error } = await supabase.from('expense_items').insert(newRow).select().single()
     if (!error) setAnnual(prev => [...prev, data])
     return { error }
@@ -98,7 +90,7 @@ export function useBudget() {
     await supabase.from('expense_items').delete().eq('id', id)
   }
 
-  // ── Categories ─────────────────────────────────────────────────────────────
+  // ── Categories ────────────────────────────────────────────────────────────
   const updateCategory = (id, field, value) =>
     updateCell('categories', id, field, value, setCategories)
 
@@ -114,13 +106,18 @@ export function useBudget() {
     await supabase.from('categories').delete().eq('id', id)
   }
 
-  // ── Derived totals ─────────────────────────────────────────────────────────
-  const totalBudgetedIncome   = income.reduce((s, r) => s + (r.budgeted || 0), 0)
-  const totalActualIncome     = income.reduce((s, r) => s + (r.actual   || 0), 0)
-  const totalBudgetedMonthly  = monthly.reduce((s, r) => s + (r.budgeted || 0), 0)
-  const totalActualMonthly    = monthly.reduce((s, r) => s + (r.actual   || 0), 0)
-  const totalBudgetedAnnual   = annual.reduce((s, r) => s + (r.budgeted || 0), 0)
-  const totalActualAnnual     = annual.reduce((s, r) => s + (r.actual   || 0), 0)
+  // ── Derived totals — disabled rows excluded from every calculation ────────
+  // Mirrors the original HTML: income.filter(r=>r.enabled!==false), etc.
+  const activeIncome  = income.filter(r => r.enabled !== false)
+  const activeMonthly = monthly.filter(r => r.enabled !== false)
+  const activeAnnual  = annual.filter(r => r.enabled !== false)
+
+  const totalBudgetedIncome   = activeIncome.reduce((s, r)  => s + (r.budgeted || 0), 0)
+  const totalActualIncome     = activeIncome.reduce((s, r)  => s + (r.actual   || 0), 0)
+  const totalBudgetedMonthly  = activeMonthly.reduce((s, r) => s + (r.budgeted || 0), 0)
+  const totalActualMonthly    = activeMonthly.reduce((s, r) => s + (r.actual   || 0), 0)
+  const totalBudgetedAnnual   = activeAnnual.reduce((s, r)  => s + (r.budgeted || 0), 0)
+  const totalActualAnnual     = activeAnnual.reduce((s, r)  => s + (r.actual   || 0), 0)
   const totalBudgetedAnnualMo = totalBudgetedAnnual / 12
   const totalActualAnnualMo   = totalActualAnnual   / 12
   const totalBudgetedExpenses = totalBudgetedMonthly + totalBudgetedAnnualMo
@@ -132,19 +129,18 @@ export function useBudget() {
   const savingsRateActual     = totalActualIncome > 0
     ? Math.round((netActual   / totalActualIncome)   * 100) : 0
 
+  // Count of disabled rows per table — shown on Dashboard as a notice
+  const disabledIncome  = income.filter(r => r.enabled === false).length
+  const disabledMonthly = monthly.filter(r => r.enabled === false).length
+  const disabledAnnual  = annual.filter(r => r.enabled === false).length
+
   return {
-    // Data
     income, monthly, annual, categories,
     loading, error, reload: load,
-    // Income
     updateIncome, addIncome, deleteIncome,
-    // Monthly
     updateMonthly, addMonthly, deleteMonthly,
-    // Annual
     updateAnnual, addAnnual, deleteAnnual,
-    // Categories
     updateCategory, addCategory, deleteCategory,
-    // Totals
     totals: {
       budgetedIncome:   totalBudgetedIncome,
       actualIncome:     totalActualIncome,
@@ -158,6 +154,9 @@ export function useBudget() {
       netActual,
       savingsRateBudgeted,
       savingsRateActual,
+      disabledIncome,
+      disabledMonthly,
+      disabledAnnual,
     },
   }
 }

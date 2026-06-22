@@ -4,11 +4,11 @@ import './Nav.css'
 const TABS = [
   { id: 'dashboard',  label: 'Dashboard' },
   { id: 'income',     label: 'Income' },
-  { id: 'monthly',    label: 'Monthly' },
-  { id: 'annual',     label: 'Annual' },
-  { id: 'goals',      label: 'Goals' },
-  { id: 'categories', label: 'Categories' },
-  { id: 'reconcile',  label: 'Reconcile' },
+  { id: 'monthly',    label: 'Monthly Expenses' },
+  { id: 'annual',     label: 'Yearly Subscriptions' },
+  { id: 'goals',      label: 'Savings Goals' },
+  { id: 'categories', label: 'Categories & Colors' },
+  { id: 'reconcile',  label: '🔄 Reconcile' },
   { id: 'payees',     label: 'Payees' },
 ]
 
@@ -35,9 +35,7 @@ export default function Nav({ activeTab, onTabChange }) {
 
       <div className="nav-right">
         <span className="nav-email">{user?.email}</span>
-        <button className="nav-signout" onClick={signOut} title="Sign out">
-          ↪
-        </button>
+        <button className="nav-signout" onClick={signOut} title="Sign out">↪</button>
       </div>
     </nav>
   )

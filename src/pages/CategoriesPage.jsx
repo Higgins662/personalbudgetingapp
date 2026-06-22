@@ -12,10 +12,10 @@ const PRESET_COLORS = [
 export default function CategoriesPage({ budget }) {
   const { categories, updateCategory, addCategory, deleteCategory, loading } = budget
 
-  const [showAdd,    setShowAdd]    = useState(false)
-  const [newName,    setNewName]    = useState('')
-  const [newColor,   setNewColor]   = useState(PRESET_COLORS[0])
-  const [newDesc,    setNewDesc]    = useState('')
+  const [showAdd,  setShowAdd]  = useState(false)
+  const [newName,  setNewName]  = useState('')
+  const [newColor, setNewColor] = useState(PRESET_COLORS[0])
+  const [newDesc,  setNewDesc]  = useState('')
 
   if (loading) return <div className="loading-center"><span className="spinner" /> Loading…</div>
 
@@ -28,13 +28,13 @@ export default function CategoriesPage({ budget }) {
   return (
     <div className="fadein">
       <div className="sec-hdr">
-        <span className="sec-title">Categories</span>
+        <span className="sec-title">Categories &amp; Colors</span>
         <span className="sec-hint">Color-code your expenses</span>
       </div>
 
       <div className="cat-page-grid">
         {categories.map(cat => (
-          <div key={cat.id} className={`cat-card card${cat.enabled === false ? ' cat-disabled' : ''}`}>
+          <div key={cat.id} className="cat-card card">
             <div className="cat-card-top">
               {/* Color swatch — clicking opens native color picker */}
               <label className="color-swatch" style={{ background: cat.color }} title="Change color">
@@ -60,14 +60,6 @@ export default function CategoriesPage({ budget }) {
               </div>
 
               <div className="cat-card-actions">
-                <label className="toggle" title={cat.enabled === false ? 'Enable' : 'Disable'}>
-                  <input
-                    type="checkbox"
-                    checked={cat.enabled !== false}
-                    onChange={e => updateCategory(cat.id, 'enabled', e.target.checked)}
-                  />
-                  <span className="toggle-track"><span className="toggle-thumb" /></span>
-                </label>
                 <button
                   className="del-btn"
                   onClick={() => deleteCategory(cat.id)}
@@ -78,7 +70,6 @@ export default function CategoriesPage({ budget }) {
           </div>
         ))}
 
-        {/* Add card */}
         {!showAdd && (
           <button className="cat-add-card" onClick={() => setShowAdd(true)}>
             <span className="cat-add-icon">+</span>

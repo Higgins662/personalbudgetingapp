@@ -5,23 +5,6 @@ import PaymentMethodBadge from '../ui/PaymentMethodBadge'
 import { fmt } from '../../lib/format'
 import './BudgetTable.css'
 
-/**
- * Reusable budget table used for Income, Monthly Expenses, and Annual Expenses.
- *
- * Props:
- *   rows               — array of row objects
- *   categories         — all categories (for badge picker)
- *   bankAccounts       — all bank accounts (for payment method picker) — optional
- *   onUpdate           — (id, field, value) => void
- *   onAdd              — (newRow) => void
- *   onDelete           — (id) => void
- *   showCategory       — bool (default true)
- *   showPaymentMethod  — bool (default false) — shows a bank-account picker per row
- *   showNote           — bool (default true)
- *   isIncome           — bool — changes totals display
- *   addLabel           — string for the "add row" button
- *   emptyMessage       — string shown when rows is empty
- */
 export default function BudgetTable({
   rows = [],
   categories = [],
@@ -44,8 +27,9 @@ export default function BudgetTable({
   const [newCat,   setNewCat]   = useState('')
   const [newBank,  setNewBank]  = useState('')
 
-  const totalBudgeted = rows.reduce((s, r) => s + (r.budgeted || 0), 0)
-  const totalActual   = rows.reduce((s, r) => s + (r.actual   || 0), 0)
+  const activeRows = rows.filter(r => r.enabled !== false)
+  const totalBudgeted = activeRows.reduce((s, r) => s + (r.budgeted || 0), 0)
+  const totalActual   = activeRows.reduce((s, r) => s + (r.actual   || 0), 0)
 
   async function handleAdd() {
     if (!newLabel.trim()) return
@@ -55,12 +39,18 @@ export default function BudgetTable({
       actual:      0,
       note:        newNote.trim(),
       category_id: newCat || null,
+      enabled:     true,
       ...(showPaymentMethod ? { bank_account_id: newBank || null } : {}),
     })
-    setNewLabel(''); setNewBud(''); setNewNote(''); setNewCat(''); setNewBank(''); setShowAdd(false)
+    setNewLabel(''); setNewBud(''); setNewNote(''); setNewCat(''); setNewBank('')
+    setShowAdd(false)
   }
 
-  const colCount = 4 + (showCategory ? 1 : 0) + (showPaymentMethod ? 1 : 0) + (showNote ? 1 : 0) + 1
+  const colCount = 4
+    + (showCategory ? 1 : 0)
+    + (showPaymentMethod ? 1 : 0)
+    + (showNote ? 1 : 0)
+    + 2 // toggle + delete
 
   return (
     <div>
@@ -69,7 +59,8 @@ export default function BudgetTable({
         <table>
           <thead>
             <tr>
-              <th style={{ width: '30%' }}>Description</th>
+              <th style={{ width: 36 }} title="Enable / disable row" />
+              <th style={{ width: '28%' }}>Description</th>
               {showCategory && <th>Category</th>}
               {showPaymentMethod && <th>{paymentMethodLabel}</th>}
               <th className="r">Budgeted</th>
@@ -88,11 +79,18 @@ export default function BudgetTable({
               </tr>
             )}
             {rows.map(row => {
+              const enabled = row.enabled !== false
               const diff = isIncome
                 ? (row.actual || 0) - (row.budgeted || 0)
                 : (row.budgeted || 0) - (row.actual || 0)
               return (
-                <tr key={row.id}>
+                <tr key={row.id} className={enabled ? '' : 'row-disabled'}>
+                  <td>
+                    <RowToggle
+                      enabled={enabled}
+                      onChange={v => onUpdate(row.id, 'enabled', v)}
+                    />
+                  </td>
                   <td>
                     <EditableCell
                       value={row.label}
@@ -160,7 +158,15 @@ export default function BudgetTable({
           </tbody>
           <tfoot>
             <tr>
-              <td colSpan={showCategory ? 2 : 1}>Total</td>
+              <td />
+              <td colSpan={showCategory ? 2 : 1}>
+                Total
+                {rows.some(r => r.enabled === false) && (
+                  <span className="disabled-banner">
+                    {rows.filter(r => r.enabled === false).length} excluded
+                  </span>
+                )}
+              </td>
               {showPaymentMethod && <td />}
               <td className="r">{fmt(totalBudgeted)}</td>
               <td className="r">{fmt(totalActual)}</td>
@@ -184,6 +190,7 @@ export default function BudgetTable({
           </div>
         )}
         {rows.map(row => {
+          const enabled = row.enabled !== false
           const diff = isIncome
             ? (row.actual || 0) - (row.budgeted || 0)
             : (row.budgeted || 0) - (row.actual || 0)
@@ -192,6 +199,7 @@ export default function BudgetTable({
               key={row.id}
               row={row}
               diff={diff}
+              enabled={enabled}
               categories={categories}
               bankAccounts={bankAccounts}
               showCategory={showCategory}
@@ -203,7 +211,14 @@ export default function BudgetTable({
           )
         })}
         <div className="mob-total">
-          <span>Total</span>
+          <span>
+            Total
+            {rows.some(r => r.enabled === false) && (
+              <span className="disabled-banner" style={{ marginLeft: '.4rem' }}>
+                {rows.filter(r => r.enabled === false).length} excluded
+              </span>
+            )}
+          </span>
           <span className="mono">{fmt(totalBudgeted)}</span>
           <span className="mono">{fmt(totalActual)}</span>
         </div>
@@ -226,9 +241,7 @@ export default function BudgetTable({
             <div className="fg">
               <label>Budgeted ($)</label>
               <input
-                type="number"
-                min="0"
-                step="0.01"
+                type="number" min="0" step="0.01"
                 value={newBud}
                 onChange={e => setNewBud(e.target.value)}
                 placeholder="0.00"
@@ -240,7 +253,7 @@ export default function BudgetTable({
                 <label>Category</label>
                 <select value={newCat} onChange={e => setNewCat(e.target.value)}>
                   <option value="">— None —</option>
-                  {categories.filter(c => c.enabled !== false).map(c => (
+                  {categories.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
@@ -280,18 +293,29 @@ export default function BudgetTable({
   )
 }
 
-function MobileRow({ row, diff, categories, bankAccounts, showCategory, showPaymentMethod, paymentMethodLabel = 'Payment', onUpdate, onDelete }) {
+function RowToggle({ enabled, onChange }) {
+  return (
+    <label className="row-toggle" title={enabled ? 'Click to exclude from totals' : 'Click to include in totals'}>
+      <input type="checkbox" checked={enabled} onChange={e => onChange(e.target.checked)} />
+      <span className="row-toggle-track">
+        <span className="row-toggle-thumb" />
+      </span>
+    </label>
+  )
+}
+
+function MobileRow({ row, diff, enabled, categories, bankAccounts, showCategory,
+                     showPaymentMethod, paymentMethodLabel, onUpdate, onDelete }) {
   const [expanded, setExpanded] = useState(false)
   const cat  = categories.find(c => c.id === row.category_id)
   const bank = bankAccounts.find(b => b.id === row.bank_account_id)
 
   return (
-    <div className="mob-row">
+    <div className={`mob-row${enabled ? '' : ' mob-row-disabled'}`}>
       <div className="mob-row-main" onClick={() => setExpanded(e => !e)}>
         <div className="mob-row-left">
-          {cat && (
-            <span className="mob-cat-dot" style={{ background: cat.color }} />
-          )}
+          <RowToggle enabled={enabled} onChange={v => { onUpdate(row.id, 'enabled', v) }} />
+          {cat && <span className="mob-cat-dot" style={{ background: cat.color }} />}
           <span className="mob-label">{row.label}</span>
         </div>
         <div className="mob-row-right">
@@ -306,60 +330,33 @@ function MobileRow({ row, diff, categories, bankAccounts, showCategory, showPaym
         <div className="mob-row-detail fadein">
           <div className="mob-detail-row">
             <span>Budgeted</span>
-            <EditableCell
-              value={row.budgeted || 0}
-              type="currency"
-              onSave={v => onUpdate(row.id, 'budgeted', v)}
-              display={fmt}
-              className="mono"
-            />
+            <EditableCell value={row.budgeted || 0} type="currency" onSave={v => onUpdate(row.id, 'budgeted', v)} display={fmt} className="mono" />
           </div>
           <div className="mob-detail-row">
             <span>Actual</span>
-            <EditableCell
-              value={row.actual || 0}
-              type="currency"
-              onSave={v => onUpdate(row.id, 'actual', v)}
-              display={fmt}
-              className="mono"
-            />
+            <EditableCell value={row.actual || 0} type="currency" onSave={v => onUpdate(row.id, 'actual', v)} display={fmt} className="mono" />
           </div>
           {showCategory && (
             <div className="mob-detail-row">
               <span>Category</span>
-              <CategoryBadge
-                categoryId={row.category_id}
-                categories={categories}
-                onSelect={id => onUpdate(row.id, 'category_id', id)}
-              />
+              <CategoryBadge categoryId={row.category_id} categories={categories} onSelect={id => onUpdate(row.id, 'category_id', id)} />
             </div>
           )}
           {showPaymentMethod && (
             <div className="mob-detail-row">
               <span>{paymentMethodLabel}</span>
-              <PaymentMethodBadge
-                bankAccountId={row.bank_account_id}
-                bankAccounts={bankAccounts}
-                onSelect={id => onUpdate(row.id, 'bank_account_id', id)}
-              />
+              <PaymentMethodBadge bankAccountId={row.bank_account_id} bankAccounts={bankAccounts} onSelect={id => onUpdate(row.id, 'bank_account_id', id)} />
             </div>
           )}
           <div className="mob-detail-row">
             <span>Note</span>
-            <EditableCell
-              value={row.note || ''}
-              onSave={v => onUpdate(row.id, 'note', v)}
-            />
+            <EditableCell value={row.note || ''} onSave={v => onUpdate(row.id, 'note', v)} />
           </div>
           <div className="mob-detail-row">
             <span>Label</span>
-            <EditableCell
-              value={row.label}
-              onSave={v => onUpdate(row.id, 'label', v)}
-            />
+            <EditableCell value={row.label} onSave={v => onUpdate(row.id, 'label', v)} />
           </div>
-          <button className="btn btn-danger" style={{ marginTop: '.5rem', fontSize: '.8rem' }}
-            onClick={() => onDelete(row.id)}>
+          <button className="btn btn-danger" style={{ marginTop: '.5rem', fontSize: '.8rem' }} onClick={() => onDelete(row.id)}>
             Delete row
           </button>
         </div>
