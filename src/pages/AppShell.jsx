@@ -8,6 +8,7 @@ import GoalsPage from './GoalsPage'
 import CategoriesPage from './CategoriesPage'
 import ReconcilePage from './ReconcilePage'
 import PayeesPage from './PayeesPage'
+import SettingsPage from './SettingsPage'
 import { useBudget } from '../hooks/useBudget'
 import { useTransactions } from '../hooks/useTransactions'
 import { useGoals } from '../hooks/useGoals'
@@ -16,19 +17,20 @@ export default function AppShell() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const budget       = useBudget()
   const transactions = useTransactions()
-  const goalsHook     = useGoals()
+  const goalsHook    = useGoals()
 
   function renderTab() {
     switch (activeTab) {
-      case 'dashboard':  return <Dashboard  budget={budget} goalsHook={goalsHook} />
-      case 'income':     return <IncomePage budget={budget} transactions={transactions} />
-      case 'monthly':    return <MonthlyPage budget={budget} transactions={transactions} />
-      case 'annual':     return <AnnualPage  budget={budget} transactions={transactions} />
-      case 'goals':      return <GoalsPage goalsHook={goalsHook} />
+      case 'dashboard':  return <Dashboard     budget={budget} goalsHook={goalsHook} />
+      case 'income':     return <IncomePage    budget={budget} transactions={transactions} />
+      case 'monthly':    return <MonthlyPage   budget={budget} transactions={transactions} />
+      case 'annual':     return <AnnualPage    budget={budget} transactions={transactions} />
+      case 'goals':      return <GoalsPage     goalsHook={goalsHook} />
       case 'categories': return <CategoriesPage budget={budget} />
       case 'reconcile':  return <ReconcilePage budget={budget} transactions={transactions} />
-      case 'payees':     return <PayeesPage transactions={transactions} />
-      default:           return <Dashboard budget={budget} goalsHook={goalsHook} />
+      case 'payees':     return <PayeesPage    transactions={transactions} />
+      case 'settings':   return <SettingsPage />
+      default:           return <Dashboard     budget={budget} goalsHook={goalsHook} />
     }
   }
 

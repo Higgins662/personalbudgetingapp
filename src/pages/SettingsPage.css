@@ -1,0 +1,115 @@
+.settings-page {
+  max-width: 640px;
+}
+
+.settings-section {
+  padding: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.settings-section-title {
+  font-weight: 700;
+  font-size: .88rem;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--ink2);
+  margin-bottom: 1rem;
+  padding-bottom: .6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.settings-danger-card {
+  border-color: #f5c0c0;
+  background: #fffafa;
+}
+
+.settings-danger-title { color: var(--red); }
+
+.settings-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: .6rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.settings-row:last-child { border-bottom: none; }
+
+.settings-label {
+  font-size: .875rem;
+  font-weight: 600;
+  color: var(--ink);
+  flex-shrink: 0;
+}
+
+.settings-sublabel {
+  font-size: .78rem;
+  color: var(--ink3);
+  margin-top: .2rem;
+  line-height: 1.55;
+}
+.settings-sublabel a { color: var(--blue); text-decoration: none; }
+.settings-sublabel a:hover { text-decoration: underline; }
+
+.settings-value {
+  font-size: .875rem;
+  color: var(--ink2);
+  text-align: right;
+  word-break: break-all;
+}
+
+.settings-desc {
+  font-size: .875rem;
+  color: var(--ink3);
+  line-height: 1.6;
+  margin-bottom: .75rem;
+}
+
+.settings-export-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+}
+
+.export-file-chip {
+  background: var(--card2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: .28rem .65rem;
+  font-size: .78rem;
+  color: var(--ink3);
+}
+
+.settings-link-btn {
+  background: none;
+  border: none;
+  color: var(--blue);
+  font-family: inherit;
+  font-size: inherit;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+.settings-link-btn:hover { color: var(--ink); }
+
+.settings-legal {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  justify-content: center;
+  font-size: .78rem;
+  color: var(--ink3);
+  margin-top: .5rem;
+  padding-bottom: 1rem;
+}
+.settings-legal a {
+  color: var(--ink3);
+  text-decoration: none;
+}
+.settings-legal a:hover { color: var(--blue); text-decoration: underline; }
+
+@media (max-width: 480px) {
+  .settings-section { padding: 1.1rem; }
+  .settings-row { flex-direction: column; gap: .25rem; }
+  .settings-value { text-align: left; }
+}
