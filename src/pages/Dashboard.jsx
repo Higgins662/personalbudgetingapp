@@ -1,4 +1,5 @@
 import { fmt } from '../lib/format'
+import { MonthSelector } from '../components/ui/PeriodSelector'
 import './Dashboard.css'
 
 /** Build a clean disabled-rows summary string with no spacing artifacts */
@@ -11,7 +12,7 @@ function buildDisabledNotice(disabledIncome, disabledMonthly, disabledAnnual) {
   return `${total} row${total === 1 ? '' : 's'} excluded from totals (${parts.join(', ')}). Enable them in their respective tabs.`
 }
 
-export default function Dashboard({ budget, goalsHook }) {
+export default function Dashboard({ budget, goalsHook, periods }) {
   const { totals, categories, monthly, annual, loading } = budget
 
   if (loading) {
@@ -50,6 +51,13 @@ export default function Dashboard({ budget, goalsHook }) {
 
   return (
     <div className="fadein">
+      {periods && <MonthSelector periods={periods} />}
+      {periods && !periods.isViewingCurrentMonth && (
+        <div className="alert alert-info" style={{ marginBottom: '1.25rem', fontSize: '.83rem' }}>
+          📅 You're viewing a past month. Numbers reflect that period's budget and actuals, not the current month.
+        </div>
+      )}
+
       {/* Summary cards */}
       <div className="summary-grid">
         <SummaryCard label="Monthly Income"   budgeted={budgetedIncome}   actual={actualIncome}   color="var(--green)" />

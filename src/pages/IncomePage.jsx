@@ -1,7 +1,8 @@
 import BudgetTable from '../components/ui/BudgetTable'
+import { MonthSelector } from '../components/ui/PeriodSelector'
 import { fmt } from '../lib/format'
 
-export default function IncomePage({ budget, transactions }) {
+export default function IncomePage({ budget, transactions, periods }) {
   const { income, categories, updateIncome, addIncome, deleteIncome, totals, loading } = budget
   const bankAccounts = transactions?.bankAccounts ?? []
 
@@ -17,6 +18,8 @@ export default function IncomePage({ budget, transactions }) {
           Actual: <strong className="mono v-green">{fmt(totals.actualIncome)}</strong>
         </span>
       </div>
+
+      {periods && <MonthSelector periods={periods} />}
 
       {bankAccounts.length === 0 && (
         <div className="alert alert-info" style={{ marginBottom: '1rem', fontSize: '.83rem' }}>

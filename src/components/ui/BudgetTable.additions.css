@@ -53,3 +53,15 @@ tbody tr.row-disabled:hover { background: repeating-linear-gradient(
   margin-left: .5rem;
   font-weight: 400;
 }
+
+/* ── Flagged row — over-budget warning from previous period ── */
+.flag-badge {
+  font-size: .68rem;
+  font-weight: 600;
+  color: var(--gold);
+  background: #fff8e8;
+  border: 1px solid #e8d8a8;
+  border-radius: 999px;
+  padding: .12rem .5rem;
+  white-space: nowrap;
+}

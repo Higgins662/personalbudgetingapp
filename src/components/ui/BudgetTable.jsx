@@ -2,6 +2,7 @@ import { useState } from 'react'
 import EditableCell from '../ui/EditableCell'
 import CategoryBadge from '../ui/CategoryBadge'
 import PaymentMethodBadge from '../ui/PaymentMethodBadge'
+import FlagBadge from '../ui/FlagBadge'
 import { fmt } from '../../lib/format'
 import './BudgetTable.css'
 
@@ -92,10 +93,13 @@ export default function BudgetTable({
                     />
                   </td>
                   <td>
-                    <EditableCell
-                      value={row.label}
-                      onSave={v => onUpdate(row.id, 'label', v)}
-                    />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', flexWrap: 'wrap' }}>
+                      <EditableCell
+                        value={row.label}
+                        onSave={v => onUpdate(row.id, 'label', v)}
+                      />
+                      {row.flagged && <FlagBadge variance={row.flag_variance} />}
+                    </div>
                   </td>
                   {showCategory && (
                     <td>
@@ -317,6 +321,7 @@ function MobileRow({ row, diff, enabled, categories, bankAccounts, showCategory,
           <RowToggle enabled={enabled} onChange={v => { onUpdate(row.id, 'enabled', v) }} />
           {cat && <span className="mob-cat-dot" style={{ background: cat.color }} />}
           <span className="mob-label">{row.label}</span>
+          {row.flagged && <FlagBadge variance={row.flag_variance} />}
         </div>
         <div className="mob-row-right">
           <span className="mono" style={{ fontSize: '.85rem' }}>{fmt(row.actual || 0)}</span>
