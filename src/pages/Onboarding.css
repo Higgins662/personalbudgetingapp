@@ -18,56 +18,84 @@
   flex-direction: column;
 }
 
-/* ── Header / step track ── */
+/* ── Header ── */
 .wiz-header {
   background: var(--ink);
-  padding: 1.75rem 2rem 1.25rem;
+  padding: 1.5rem 2rem 1.25rem;
   flex-shrink: 0;
 }
 .wiz-logo {
   font-family: 'DM Serif Display', serif;
   color: #e8d58a;
   font-size: 1.4rem;
-  margin-bottom: .25rem;
+  margin-bottom: 1.25rem;
 }
+
+/* ── Step track — spans full header width ── */
 .wiz-step-track {
   display: flex;
   align-items: center;
-  gap: 0;
-  margin-top: 1rem;
+  width: 100%;
 }
+
+/*
+ * Each "step segment" is: [node] [line]
+ * The last step has no line after it.
+ * Nodes are fixed width; lines flex to fill remaining space equally.
+ */
 .wiz-step-wrap {
+  display: flex;
+  align-items: center;
+  flex: 1;               /* each segment takes equal space */
+  min-width: 0;
+}
+/* Last step has no trailing line — doesn't need to grow */
+.wiz-step-wrap:last-child {
+  flex: 0;
+}
+
+.wiz-step-node {
   display: flex;
   flex-direction: column;
   align-items: center;
-}
-.wiz-step-dot {
-  width: 28px; height: 28px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: .72rem; font-weight: 700;
+  gap: .35rem;
   flex-shrink: 0;
+}
+
+.wiz-step-dot {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .75rem;
+  font-weight: 700;
   transition: all .25s;
+  flex-shrink: 0;
 }
 .wiz-step-dot.done   { background: #1a6b3a; color: #fff; }
 .wiz-step-dot.active { background: #e8d58a; color: var(--ink); }
 .wiz-step-dot.future { background: #2d3f52; color: #6b7f94; }
+
+.wiz-step-label {
+  font-size: .65rem;
+  text-align: center;
+  white-space: nowrap;
+  margin-top: .15rem;
+}
+
+/* Connector line — grows to fill space between nodes */
 .wiz-step-line {
   flex: 1;
   height: 2px;
   background: #2d3f52;
-  margin: 0 4px;
+  margin: 0 6px;
+  /* shift up slightly to align with dot center, not label */
+  margin-bottom: .95rem;
   transition: background .25s;
-  align-self: center;
 }
 .wiz-step-line.done { background: #1a6b3a; }
-.wiz-step-label {
-  font-size: .65rem;
-  color: #8fa8c0;
-  text-align: center;
-  margin-top: .3rem;
-  white-space: nowrap;
-}
 
 /* ── Body ── */
 .wiz-body {
@@ -150,171 +178,109 @@
 .freq-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
 
 /* ── Step 2: Accounts ── */
-.wiz-account-list {
-  display: flex; flex-direction: column; gap: .5rem;
-  margin-bottom: .75rem;
-}
+.wiz-account-list { display: flex; flex-direction: column; gap: .5rem; margin-bottom: .75rem; }
 .wiz-account-row { display: flex; gap: .5rem; align-items: center; }
 .wiz-account-row input {
-  flex: 1;
-  padding: .5rem .7rem;
-  border: 1.5px solid var(--border2);
-  border-radius: var(--radius-sm);
-  font-family: 'Outfit', sans-serif;
-  font-size: .875rem;
-  outline: none;
-  background: var(--card);
-  color: var(--ink);
+  flex: 1; padding: .5rem .7rem;
+  border: 1.5px solid var(--border2); border-radius: var(--radius-sm);
+  font-family: 'Outfit', sans-serif; font-size: .875rem; outline: none;
+  background: var(--card); color: var(--ink);
 }
 .wiz-account-row input:focus { border-color: var(--blue); }
 
 /* ── Step 3: Income ── */
 .wiz-income-rows { display: flex; flex-direction: column; gap: .5rem; margin-bottom: .75rem; }
 .wiz-income-row {
-  display: grid;
-  grid-template-columns: 1fr auto auto auto;
-  gap: .5rem;
-  align-items: center;
-  background: var(--card2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: .6rem .75rem;
-  font-size: .85rem;
+  display: grid; grid-template-columns: 1fr auto auto auto;
+  gap: .5rem; align-items: center;
+  background: var(--card2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: .6rem .75rem; font-size: .85rem;
 }
 .wiz-income-row input, .wiz-income-row select {
-  padding: .4rem .55rem;
-  border: 1px solid var(--border2);
-  border-radius: 4px;
-  font-family: 'Outfit', sans-serif;
-  font-size: .82rem;
-  outline: none;
-  background: var(--card);
-  color: var(--ink);
+  padding: .4rem .55rem; border: 1px solid var(--border2); border-radius: 4px;
+  font-family: 'Outfit', sans-serif; font-size: .82rem; outline: none;
+  background: var(--card); color: var(--ink);
 }
 
-/* ── Step 4: CSV upload zone (single, reused per-bank) ── */
+/* ── Step 4: CSV zone ── */
 .wiz-csv-zone {
-  border: 2px dashed var(--border2);
-  border-radius: var(--radius);
-  padding: 2rem;
-  text-align: center;
-  cursor: pointer;
-  transition: all .2s;
-  background: var(--card2);
-  margin-bottom: 1rem;
+  border: 2px dashed var(--border2); border-radius: var(--radius);
+  padding: 2rem; text-align: center; cursor: pointer;
+  transition: all .2s; background: var(--card2); margin-bottom: 1rem;
 }
 .wiz-csv-zone:hover { border-color: var(--blue); background: var(--blue-lt); }
-.wiz-csv-zone-icon { font-size: 2rem; margin-bottom: .5rem; }
-.wiz-csv-zone-lbl { font-weight: 600; color: var(--ink2); margin-bottom: .2rem; }
-.wiz-csv-zone-hint { font-size: .78rem; color: var(--ink3); }
+.wiz-csv-zone-icon  { font-size: 2rem; margin-bottom: .5rem; }
+.wiz-csv-zone-lbl   { font-weight: 600; color: var(--ink2); margin-bottom: .2rem; }
+.wiz-csv-zone-hint  { font-size: .78rem; color: var(--ink3); }
 
 .wiz-bank-add {
-  background: var(--card2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1.25rem;
-  margin-bottom: 1rem;
+  background: var(--card2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem;
 }
 
-/* ── Staged bank chips (multi-bank list) ── */
-.wiz-bank-list {
-  display: flex;
-  flex-direction: column;
-  gap: .6rem;
-  margin-bottom: 1.25rem;
-}
+.wiz-bank-list { display: flex; flex-direction: column; gap: .6rem; margin-bottom: 1.25rem; }
 .wiz-bank-chip {
-  display: flex;
-  align-items: center;
-  gap: .75rem;
+  display: flex; align-items: center; gap: .75rem;
   padding: .7rem .9rem;
-  background: var(--green-lt);
-  border: 1px solid var(--green-bd);
-  border-radius: var(--radius-sm);
+  background: var(--green-lt); border: 1px solid var(--green-bd); border-radius: var(--radius-sm);
 }
 .wiz-bank-chip-icon { font-size: 1.2rem; flex-shrink: 0; }
 .wiz-bank-chip-info { flex: 1; display: flex; flex-direction: column; gap: .1rem; }
 .wiz-bank-chip-name { font-weight: 600; font-size: .88rem; color: var(--ink); }
 .wiz-bank-chip-sub  { font-size: .75rem; color: var(--ink3); }
+.wiz-add-another-hint { font-size: .8rem; color: var(--ink3); font-style: italic; margin-top: -.5rem; }
 
-.wiz-add-another-hint {
-  font-size: .8rem;
-  color: var(--ink3);
-  font-style: italic;
-  margin-top: -.5rem;
-}
-
-/* ── Step 5: Review ── */
+/* ── Step 5/6: Summary grid ── */
 .wiz-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: .75rem;
-  margin-bottom: 1.25rem;
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: .75rem; margin-bottom: 1.25rem;
 }
 .wiz-scard {
-  background: var(--card2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 1rem;
-  text-align: center;
+  background: var(--card2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 1rem; text-align: center;
 }
 .wiz-scard-val {
-  font-family: 'DM Mono', monospace;
-  font-size: 1.4rem;
-  font-weight: 600;
-  color: var(--ink);
-  margin-bottom: .2rem;
+  font-family: 'DM Mono', monospace; font-size: 1.4rem;
+  font-weight: 600; color: var(--ink); margin-bottom: .2rem;
 }
 .wiz-scard-lbl {
-  font-size: .72rem;
-  color: var(--ink3);
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  font-weight: 600;
+  font-size: .72rem; color: var(--ink3);
+  text-transform: uppercase; letter-spacing: .06em; font-weight: 600;
 }
 
 .wiz-match-preview {
-  max-height: 280px;
-  overflow-y: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  margin-bottom: 1rem;
+  max-height: 280px; overflow-y: auto;
+  border: 1px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 1rem;
 }
 .wiz-bank-group-hdr {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: .75rem;
+  display: grid; grid-template-columns: 1fr auto auto; gap: .75rem;
   padding: .4rem .75rem;
-  background: var(--card2);
-  font-size: .68rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: .06em;
-  color: var(--ink3);
+  background: var(--card2); font-size: .68rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--ink3);
   border-bottom: 1px solid var(--border);
 }
 .wiz-match-row {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: .75rem;
-  align-items: center;
-  padding: .5rem .75rem;
-  border-bottom: 1px solid var(--border);
-  font-size: .82rem;
+  display: grid; grid-template-columns: 1fr auto auto; gap: .75rem;
+  align-items: center; padding: .5rem .75rem; border-bottom: 1px solid var(--border);
 }
 .wiz-match-row:last-child { border-bottom: none; }
 .wiz-match-row:hover { background: var(--card2); }
 
+/* ── Shared empty state ── */
+.wiz-empty-step { text-align: center; padding: 2.5rem 1rem; }
+
 /* ── Responsive ── */
 @media (max-width: 640px) {
-  .wiz-overlay-page { padding: 0; }
-  .wiz-modal-page { width: 100vw; max-height: 100vh; border-radius: 0; }
-  .wiz-header { padding: 1.25rem 1.25rem 1rem; }
-  .wiz-body { padding: 1.25rem; }
-  .wiz-footer { padding: 1rem 1.25rem; flex-wrap: wrap; gap: .6rem; }
+  .wiz-overlay-page  { padding: 0; }
+  .wiz-modal-page    { width: 100vw; max-height: 100vh; border-radius: 0; }
+  .wiz-header        { padding: 1.25rem 1.25rem 1rem; }
+  .wiz-body          { padding: 1.25rem; }
+  .wiz-footer        { padding: 1rem 1.25rem; flex-wrap: wrap; gap: .6rem; }
   .wiz-greeting-grid { grid-template-columns: 1fr; }
-  .wiz-summary-grid { grid-template-columns: 1fr; }
-  .wiz-income-row { grid-template-columns: 1fr; }
-  .wiz-step-label { display: none; }
+  .wiz-summary-grid  { grid-template-columns: 1fr; }
+  .wiz-income-row    { grid-template-columns: 1fr; }
+  .wiz-step-label    { display: none; }
+  .wiz-step-dot      { width: 24px; height: 24px; font-size: .68rem; }
+  .wiz-step-line     { margin-bottom: 0; }
   .wiz-bank-group-hdr, .wiz-match-row { grid-template-columns: 1fr; gap: .2rem; }
 }

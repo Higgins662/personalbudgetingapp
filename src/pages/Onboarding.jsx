@@ -11,6 +11,7 @@ import WizardCsvStep from '../components/wizard/WizardCsvStep'
 import WizardIncomeStep from '../components/wizard/WizardIncomeStep'
 import WizardExpenseStep from '../components/wizard/WizardExpenseStep'
 import WizardBudgetStep from '../components/wizard/WizardBudgetStep'
+import StepTrack from '../components/wizard/StepTrack'
 import './Onboarding.css'
 
 const STEPS = [
@@ -222,7 +223,9 @@ export default function Onboarding() {
         <div className="wiz-header">
           <div className="wiz-logo">💵 Budget Setup</div>
           <div className="wiz-step-track">
-            {STEPS.map((s, i) => {
+           <StepTrack step={step} steps={STEPS} />
+
+ {/* old section         {STEPS.map((s, i) => {
               const n   = i + 1
               const cls = n < step ? 'done' : n === step ? 'active' : 'future'
               return (
@@ -235,6 +238,7 @@ export default function Onboarding() {
                 </div>
               )
             })}
+  */}          
           </div>
         </div>
 

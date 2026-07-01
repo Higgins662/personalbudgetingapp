@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import './Nav.css'
 
@@ -10,11 +11,40 @@ const TABS = [
   { id: 'categories', label: 'Categories & Colors' },
   { id: 'reconcile',  label: '🔄 Reconcile' },
   { id: 'payees',     label: 'Payees' },
-  { id: 'settings',   label: '⚙️ Settings' },
 ]
 
 export default function Nav({ activeTab, onTabChange }) {
   const { signOut, user } = useAuth()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef   = useRef(null)
+  const btnRef    = useRef(null)
+
+  const closeMenu = useCallback(() => setMenuOpen(false), [])
+
+  useEffect(() => {
+    if (!menuOpen) return
+    function handleClick(e) {
+      if (
+        menuRef.current  && !menuRef.current.contains(e.target) &&
+        btnRef.current   && !btnRef.current.contains(e.target)
+      ) closeMenu()
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [menuOpen, closeMenu])
+
+  // First letter of email for the avatar
+  const initial = user?.email?.[0]?.toUpperCase() ?? '?'
+
+  function handleSettings() {
+    closeMenu()
+    onTabChange('settings')
+  }
+
+  async function handleSignOut() {
+    closeMenu()
+    await signOut()
+  }
 
   return (
     <nav className="nav">
@@ -34,9 +64,31 @@ export default function Nav({ activeTab, onTabChange }) {
         ))}
       </div>
 
-      <div className="nav-right">
-        <span className="nav-email">{user?.email}</span>
-        <button className="nav-signout" onClick={signOut} title="Sign out">↪</button>
+      {/* User menu */}
+      <div className="nav-user" ref={btnRef}>
+        <button
+          className={`nav-avatar${menuOpen ? ' open' : ''}`}
+          onClick={() => setMenuOpen(o => !o)}
+          aria-label="Account menu"
+          aria-expanded={menuOpen}
+        >
+          {initial}
+        </button>
+
+        {menuOpen && (
+          <div className="nav-dropdown fadein" ref={menuRef}>
+            <div className="nav-dropdown-email">{user?.email}</div>
+            <div className="nav-dropdown-divider" />
+            <button className="nav-dropdown-item" onClick={handleSettings}>
+              <span className="nav-dropdown-icon">⚙️</span>
+              Settings
+            </button>
+            <button className="nav-dropdown-item nav-dropdown-item-danger" onClick={handleSignOut}>
+              <span className="nav-dropdown-icon">↪</span>
+              Sign out
+            </button>
+          </div>
+        )}
       </div>
     </nav>
   )

@@ -17,7 +17,7 @@ import { usePeriods } from '../hooks/usePeriods'
 export default function AppShell() {
   const [activeTab, setActiveTab] = useState('dashboard')
   const periods      = usePeriods()
-  const budget        = useBudget(periods)
+  const budget       = useBudget(periods)
   const transactions = useTransactions()
   const goalsHook    = useGoals()
 
