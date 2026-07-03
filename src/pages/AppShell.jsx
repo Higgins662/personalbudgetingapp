@@ -23,7 +23,7 @@ export default function AppShell() {
 
   function renderTab() {
     switch (activeTab) {
-      case 'dashboard':  return <Dashboard     budget={budget} goalsHook={goalsHook} periods={periods} />
+      case 'dashboard':  return <Dashboard     budget={budget} goalsHook={goalsHook} periods={periods} onTabChange={setActiveTab} />
       case 'income':     return <IncomePage    budget={budget} transactions={transactions} periods={periods} />
       case 'monthly':    return <MonthlyPage   budget={budget} transactions={transactions} periods={periods} />
       case 'annual':     return <AnnualPage    budget={budget} transactions={transactions} periods={periods} />
@@ -32,7 +32,7 @@ export default function AppShell() {
       case 'reconcile':  return <ReconcilePage budget={budget} transactions={transactions} periods={periods} />
       case 'payees':     return <PayeesPage    transactions={transactions} />
       case 'settings':   return <SettingsPage />
-      default:           return <Dashboard     budget={budget} goalsHook={goalsHook} periods={periods} />
+      default:           return <Dashboard     budget={budget} goalsHook={goalsHook} periods={periods} onTabChange={setActiveTab} />
     }
   }
 

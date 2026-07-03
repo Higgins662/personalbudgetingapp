@@ -3,14 +3,6 @@ import { fmt } from '../../lib/format'
 import { groupByPayee, tagLikelyIncome } from '../../lib/transactionAnalysis'
 import './WizardSteps.css'
 
-/**
- * Step 3: Identify income sources.
- *
- * Props:
- *   transactions   — all staged transactions (all banks combined)
- *   selections     — { [payeeKey]: { checked, label } } — controlled state from parent
- *   onChange       — (selections) => void
- */
 export default function WizardIncomeStep({ transactions, selections, onChange }) {
   const [groups, setGroups] = useState([])
 
@@ -20,7 +12,14 @@ export default function WizardIncomeStep({ transactions, selections, onChange })
   }, [transactions])
 
   function toggle(key, checked) {
-    onChange({ ...selections, [key]: { ...selections[key], checked, label: selections[key]?.label ?? groups.find(g => g.key === key)?.description ?? '' } })
+    onChange({
+      ...selections,
+      [key]: {
+        ...selections[key],
+        checked,
+        label: selections[key]?.label ?? groups.find(g => g.key === key)?.description ?? '',
+      },
+    })
   }
 
   function setLabel(key, label) {
@@ -32,22 +31,28 @@ export default function WizardIncomeStep({ transactions, selections, onChange })
       <div className="wiz-empty-step">
         <div className="empty-state-icon">💳</div>
         <div className="empty-state-title">No deposits found</div>
-        <div className="empty-state-body">Your statements didn't contain any positive transactions. You can add income sources manually on the Income tab after setup.</div>
+        <div className="empty-state-body">
+          Your statements didn't contain any positive transactions. You can add
+          income sources manually on the Income tab after setup.
+        </div>
       </div>
     )
   }
 
   return (
     <div>
-      <p className="wiz-step-hint">
-        We found <strong>{groups.length}</strong> deposit source{groups.length === 1 ? '' : 's'} in your statements.
-        Check the ones that are regular income — paychecks, direct deposits, freelance payments.
-        Uncheck transfers, refunds, or one-time deposits.
-      </p>
+      {/* ── Disambiguation hint — fix #2 ── */}
+      <div className="wiz-income-hint">
+        <strong>Check only money that comes in regularly from an outside source</strong> —
+        your paycheck, freelance payments, rental income, etc.<br />
+        <span style={{ color: 'var(--red)', fontWeight: 600 }}>Uncheck</span> transfers
+        between your own accounts, refunds, tax returns, or any one-time deposits.
+        Including these will inflate your income total.
+      </div>
 
       <div className="wiz-income-groups">
         {groups.map(g => {
-          const sel = selections[g.key] ?? { checked: g.likelyIncome, label: g.description }
+          const sel       = selections[g.key] ?? { checked: g.likelyIncome, label: g.description }
           const isChecked = sel.checked ?? g.likelyIncome
           return (
             <div key={g.key} className={`wiz-income-group${isChecked ? ' selected' : ''}`}>
@@ -66,7 +71,7 @@ export default function WizardIncomeStep({ transactions, selections, onChange })
                     className="wiz-income-label-input"
                     value={sel.label ?? g.description}
                     onChange={e => setLabel(g.key, e.target.value)}
-                    placeholder="Label this income source…"
+                    placeholder="Click to rename this income source…"
                   />
                 ) : (
                   <span className="wiz-income-group-desc">{g.description}</span>
@@ -77,7 +82,9 @@ export default function WizardIncomeStep({ transactions, selections, onChange })
                   <span className="mono">{fmt(g.total)} total</span>
                   <span>·</span>
                   <span className="mono">{fmt(g.avgPerOccurrence)} avg</span>
-                  {g.likelyIncome && <span className="wiz-likely-badge">likely recurring</span>}
+                  {g.likelyIncome && (
+                    <span className="wiz-likely-badge">likely recurring</span>
+                  )}
                 </div>
               </div>
             </div>

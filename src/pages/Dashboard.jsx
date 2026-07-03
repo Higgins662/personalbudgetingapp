@@ -2,7 +2,6 @@ import { fmt } from '../lib/format'
 import { MonthSelector } from '../components/ui/PeriodSelector'
 import './Dashboard.css'
 
-/** Build a clean disabled-rows summary string with no spacing artifacts */
 function buildDisabledNotice(disabledIncome, disabledMonthly, disabledAnnual) {
   const parts = []
   if (disabledIncome  > 0) parts.push(`${disabledIncome} income`)
@@ -12,7 +11,7 @@ function buildDisabledNotice(disabledIncome, disabledMonthly, disabledAnnual) {
   return `${total} row${total === 1 ? '' : 's'} excluded from totals (${parts.join(', ')}). Enable them in their respective tabs.`
 }
 
-export default function Dashboard({ budget, goalsHook, periods }) {
+export default function Dashboard({ budget, goalsHook, periods, onTabChange }) {
   const { totals, categories, monthly, annual, loading } = budget
 
   if (loading) {
@@ -49,12 +48,30 @@ export default function Dashboard({ budget, goalsHook, periods }) {
   const totalDisabled = (disabledIncome || 0) + (disabledMonthly || 0) + (disabledAnnual || 0)
   const goalColors    = ['#1a3a6b', '#1a6b3a', '#b8860b', '#4a1a6b', '#0a4a4a']
 
+  // Fix #1 — detect when everything is zero (fresh account or pre-apply)
+  const allActualsZero = actualIncome === 0 && actualExpenses === 0
+
   return (
     <div className="fadein">
       {periods && <MonthSelector periods={periods} />}
+
       {periods && !periods.isViewingCurrentMonth && (
         <div className="alert alert-info" style={{ marginBottom: '1.25rem', fontSize: '.83rem' }}>
-          📅 You're viewing a past month. Numbers reflect that period's budget and actuals, not the current month.
+          📅 You're viewing a past month. Numbers reflect that period's budget and actuals.
+        </div>
+      )}
+
+      {/* Fix #1 — empty state banner */}
+      {allActualsZero && (
+        <div className="dash-empty-banner">
+          <div className="dash-empty-icon">📊</div>
+          <div className="dash-empty-body">
+            <strong>Your actuals are all zero.</strong> Import a bank statement
+            in <button className="dash-link-btn" onClick={() => onTabChange?.('reconcile')}>
+              🔄 Reconcile
+            </button> and apply it to see real numbers here. Or click any
+            <strong> Actual</strong> amount in the Income or Expenses tabs to enter it manually.
+          </div>
         </div>
       )}
 
@@ -62,7 +79,8 @@ export default function Dashboard({ budget, goalsHook, periods }) {
       <div className="summary-grid">
         <SummaryCard label="Monthly Income"   budgeted={budgetedIncome}   actual={actualIncome}   color="var(--green)" />
         <SummaryCard label="Monthly Expenses" budgeted={budgetedExpenses} actual={actualExpenses} color="var(--red)" flip />
-        <SummaryCard label="Net Cash Flow"    budgeted={netBudgeted}      actual={netActual}      color={netActual >= 0 ? 'var(--green)' : 'var(--red)'} signed />
+        <SummaryCard label="Net Cash Flow"    budgeted={netBudgeted}      actual={netActual}
+          color={netActual >= 0 ? 'var(--green)' : 'var(--red)'} signed />
         <div className="scard">
           <div className="slabel">Savings / Month</div>
           <div className="sval v-blue">{fmt(goalsTotals.totalMonthly)}</div>
@@ -89,7 +107,9 @@ export default function Dashboard({ budget, goalsHook, periods }) {
           <div className="empty-state">
             <div className="empty-state-icon">📊</div>
             <div className="empty-state-title">No category data yet</div>
-            <div className="empty-state-body">Add expenses and assign categories to see a breakdown here.</div>
+            <div className="empty-state-body">
+              Add expenses and assign categories to see a breakdown here.
+            </div>
           </div>
         ) : (
           <div className="cat-grid">
@@ -104,7 +124,10 @@ export default function Dashboard({ budget, goalsHook, periods }) {
                   </span>
                 </div>
                 <div className="prog-bar">
-                  <div className="prog-fill" style={{ width: `${cat.pct}%`, background: cat.pct > 100 ? 'var(--red)' : cat.color }} />
+                  <div className="prog-fill" style={{
+                    width: `${cat.pct}%`,
+                    background: cat.pct > 100 ? 'var(--red)' : cat.color,
+                  }} />
                 </div>
                 <div className="cat-pct" style={{ color: cat.pct > 100 ? 'var(--red)' : 'var(--ink3)' }}>
                   {cat.pct}% of budget
@@ -115,7 +138,7 @@ export default function Dashboard({ budget, goalsHook, periods }) {
         )}
       </div>
 
-      {/* Savings goals progress */}
+      {/* Savings goals progress — fix #16: goal names are clickable */}
       {!goalsLoading && goals.length > 0 && (
         <div className="dash-section card" style={{ marginBottom: '1.5rem' }}>
           <div className="sec-hdr">
@@ -128,22 +151,39 @@ export default function Dashboard({ budget, goalsHook, periods }) {
               return (
                 <div key={g.id} className="goal-bar-row">
                   <div className="goal-bar-hdr">
-                    <span>{g.name}</span>
+                    {/* Fix #16 — clickable goal name navigates to Goals tab */}
+                    <button
+                      className="dash-link-btn goal-name-link"
+                      onClick={() => onTabChange?.('goals')}
+                      title="Go to Savings Goals"
+                    >
+                      {g.name}
+                    </button>
                     <span className="mono" style={{ fontSize: '.78rem', color: 'var(--ink3)' }}>
                       {fmt(g.saved || 0)} / {fmt(g.target || 0)}
                     </span>
                   </div>
                   <div className="prog-bar">
-                    <div className="prog-fill" style={{ width: `${pct}%`, background: goalColors[i % goalColors.length] }} />
+                    <div className="prog-fill" style={{
+                      width: `${pct}%`,
+                      background: goalColors[i % goalColors.length],
+                    }} />
                   </div>
                 </div>
               )
             })}
           </div>
+          <button
+            className="btn-add"
+            style={{ marginTop: '.75rem' }}
+            onClick={() => onTabChange?.('goals')}
+          >
+            Manage savings goals →
+          </button>
         </div>
       )}
 
-      {/* Disabled-rows notice — bottom of page, unobtrusive */}
+      {/* Disabled-rows notice — bottom of page */}
       {totalDisabled > 0 && (
         <div className="alert alert-info" style={{ fontSize: '.82rem', color: 'var(--ink3)' }}>
           ⚠️ {buildDisabledNotice(disabledIncome, disabledMonthly, disabledAnnual)}

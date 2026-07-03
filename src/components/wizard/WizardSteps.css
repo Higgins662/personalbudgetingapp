@@ -311,3 +311,15 @@
   .wiz-slider-hdr   { flex-direction: column; }
   .wiz-summary-grid { grid-template-columns: 1fr; }
 }
+
+/* ── Income step disambiguation hint (fix #2) ── */
+.wiz-income-hint {
+  font-size: .84rem;
+  color: var(--ink2);
+  line-height: 1.65;
+  background: var(--blue-lt);
+  border: 1px solid var(--blue-bd);
+  border-radius: var(--radius-sm);
+  padding: .75rem 1rem;
+  margin-bottom: 1rem;
+}

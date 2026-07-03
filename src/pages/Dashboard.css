@@ -8,64 +8,72 @@
   gap: 1.25rem;
 }
 
-.cat-row {
-  display: flex;
-  flex-direction: column;
-  gap: .35rem;
-}
+.cat-row { display: flex; flex-direction: column; gap: .35rem; }
 
 .cat-row-hdr {
-  display: flex;
-  align-items: center;
-  gap: .45rem;
-  font-size: .85rem;
+  display: flex; align-items: center; gap: .45rem; font-size: .85rem;
 }
 
-.cat-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
+.cat-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.cat-name { font-weight: 500; flex: 1; color: var(--ink2); }
+.cat-amounts { font-size: .8rem; }
+.cat-pct { font-size: .72rem; padding-left: 1.4rem; }
 
-.cat-name {
-  font-weight: 500;
-  flex: 1;
-  color: var(--ink2);
-}
-
-.cat-amounts {
-  font-size: .8rem;
-}
-
-.cat-pct {
-  font-size: .72rem;
-  padding-left: 1.4rem;
-}
-
-/* ── Savings goals progress (dashboard) ── */
-.goal-bars {
-  display: flex;
-  flex-direction: column;
-  gap: .9rem;
-}
-
-.goal-bar-row {
-  display: flex;
-  flex-direction: column;
-  gap: .3rem;
-}
-
+/* ── Savings goals section ── */
+.goal-bars { display: flex; flex-direction: column; gap: .9rem; }
+.goal-bar-row { display: flex; flex-direction: column; gap: .3rem; }
 .goal-bar-hdr {
+  display: flex; justify-content: space-between;
+  align-items: baseline; font-size: .85rem; font-weight: 500; color: var(--ink2);
+}
+
+/* Fix #1 — empty state banner */
+.dash-empty-banner {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  font-size: .85rem;
+  align-items: flex-start;
+  gap: .75rem;
+  background: var(--blue-lt);
+  border: 1px solid var(--blue-bd);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+  font-size: .875rem;
+  color: var(--ink2);
+  line-height: 1.6;
+}
+.dash-empty-icon { font-size: 1.5rem; flex-shrink: 0; margin-top: .1rem; }
+.dash-empty-body { flex: 1; }
+
+/* Fix #16 — inline link button used in dashboard (empty state + goal names) */
+.dash-link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 600;
+  color: var(--blue);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.dash-link-btn:hover { color: var(--ink); }
+
+.goal-name-link {
+  text-align: left;
+  text-decoration: none;
   font-weight: 500;
   color: var(--ink2);
+  border-bottom: 1px dashed var(--border2);
+  transition: color .15s, border-color .15s;
+}
+.goal-name-link:hover {
+  color: var(--blue);
+  border-bottom-color: var(--blue);
 }
 
 @media (max-width: 480px) {
   .cat-grid { grid-template-columns: 1fr; }
   .dash-section { padding: 1.1rem; }
+  .dash-empty-banner { flex-direction: column; gap: .4rem; }
 }

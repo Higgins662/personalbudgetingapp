@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { seedCategories, seedFallbackBudget, seedFromTransactions } from '../lib/seed'
 import { DEFAULT_CATEGORIES } from '../lib/seedData'
-import { parseCSV, getCSVHeaders, extractTransactions } from '../lib/csvParser'
-import { collapseToCategories, estimateMonths, calculateBudgets } from '../lib/transactionAnalysis'
+import { collapseToCategories, calculateBudgets } from '../lib/transactionAnalysis'
 import { normalizePattern } from '../lib/fuzzyMatch'
 import { fmt } from '../lib/format'
 import WizardCsvStep from '../components/wizard/WizardCsvStep'
@@ -23,11 +22,16 @@ const STEPS = [
   { label: 'Done' },
 ]
 
-const GOALS = [
-  { id: 'track', label: '📊 Just track spending' },
-  { id: 'save',  label: '💰 Build savings' },
-  { id: 'debt',  label: '📉 Pay down debt' },
-  { id: 'plan',  label: '🎯 Plan a big goal' },
+// Fix #6 — bank-specific CSV export instructions
+const BANK_TIPS = [
+  { bank: 'Chase',           tip: 'Sign in → choose an account → Activity → Download Account Activity → select date range → CSV' },
+  { bank: 'Bank of America', tip: 'Sign in → Accounts → Download → choose date range → Comma Delimited (CSV)' },
+  { bank: 'Wells Fargo',     tip: 'Sign in → Accounts tab → Download Account Activity → select dates → Download (.csv)' },
+  { bank: 'Truist',          tip: 'Sign in → Account Activity → Export → CSV' },
+  { bank: 'Capital One',     tip: 'Sign in → account → Download Transactions → CSV' },
+  { bank: 'Citi',            tip: 'Sign in → Account Details → Download → CSV' },
+  { bank: 'US Bank',         tip: 'Sign in → Transactions → Download → CSV format' },
+  { bank: 'Other banks',     tip: 'Look for "Download," "Export," or "Account Activity" in your online banking. Choose CSV or Comma Separated Values format.' },
 ]
 
 export default function Onboarding() {
@@ -38,37 +42,32 @@ export default function Onboarding() {
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState('')
 
-  // Step 1
+  // Fix #5 — goal question removed; only name and household remain
   const [name,      setName]      = useState('')
   const [household, setHousehold] = useState('')
-  const [goal,      setGoal]      = useState('')
 
-  // Step 2 — CSV staging (same as before)
+  // Fix #6 — CSV tip panel toggle
+  const [showCsvTip, setShowCsvTip] = useState(false)
+
+  // Step 2 — CSV staging
   const [pendingBanks, setPendingBanks] = useState([])
 
-  // Working categories — seeded defaults + any user-added during step 4
-  // We keep these in memory during the wizard; they get written to DB at completion
+  // Working categories
   const [categories, setCategories] = useState(
     DEFAULT_CATEGORIES.map((c, i) => ({ ...c, id: `seed-${i}`, user_id: null }))
   )
-
-  // User-created categories (added during step 4) — tracked separately
-  // so we can pass them to seedFromTransactions for DB insertion
   const [userCategories, setUserCategories] = useState([])
 
-  // Step 3 — income selections
-  // { [payeeKey]: { checked, label, total, avgPerOccurrence } }
+  // Step 3 — income
   const [incomeSelections, setIncomeSelections] = useState({})
 
-  // Step 4 — expense category assignments
-  // { [payeeKey]: categoryId }
+  // Step 4 — expense assignments
   const [assignments, setAssignments] = useState({})
 
-  // Step 5 — budget overrides + savings slider
-  const [budgetOverrides,  setBudgetOverrides]  = useState({})
-  const [savingsPct,       setSavingsPct]        = useState(0)
+  // Step 5 — budget overrides + slider
+  const [budgetOverrides, setBudgetOverrides] = useState({})
+  const [savingsPct,      setSavingsPct]      = useState(0)
 
-  // All staged transactions flattened across all banks
   const allTransactions = useMemo(() =>
     pendingBanks.flatMap((b, bi) =>
       b.transactions.map(tx => ({ ...tx, stagingBankId: `bank-${bi}` }))
@@ -76,24 +75,13 @@ export default function Onboarding() {
 
   const debitTx = allTransactions.filter(t => t.amount < 0)
 
-  // ── Navigation helpers ────────────────────────────────────────────────────
-
-  function canAdvanceFrom(s) {
-    if (s === 1) return true // name/goal optional
-    if (s === 2) return true // CSV optional — skip allowed
-    if (s === 3) return true // income optional
-    if (s === 4) return true // can advance even with unassigned payees
-    if (s === 5) return true
-    return true
-  }
+  function canAdvanceFrom(s) { return true }
 
   async function handleNext() {
     setError('')
 
-    // Step 2 → 3: seed categories in DB now (needed for IDs in later steps)
     if (step === 2) {
       setLoading(true)
-      // If no banks uploaded, go straight to fallback
       if (pendingBanks.length === 0) {
         const { catMap, error } = await seedCategories(user.id)
         if (error) { setError(error.message); setLoading(false); return }
@@ -102,12 +90,8 @@ export default function Onboarding() {
         navigate('/dashboard', { replace: true })
         return
       }
-
-      // Seed categories, get real DB ids
       const { catMap, error: catErr } = await seedCategories(user.id)
       if (catErr) { setError(catErr.message); setLoading(false); return }
-
-      // Replace temp seed ids with real DB ids on our local category list
       setCategories(prev => prev.map(c => {
         const realId = catMap[c.name]
         return realId ? { ...c, id: realId } : c
@@ -117,7 +101,6 @@ export default function Onboarding() {
       return
     }
 
-    // Step 5 → 6: write everything to DB
     if (step === 5) {
       setLoading(true)
       const err = await handleCommit()
@@ -130,22 +113,20 @@ export default function Onboarding() {
     setStep(s => s + 1)
   }
 
-  // ── Commit to DB at end of step 5 ─────────────────────────────────────────
   async function handleCommit() {
+    const { estimateMonths } = await import('../lib/transactionAnalysis')
     const months = estimateMonths(allTransactions)
 
-    // Resolve category totals for budget calculation
     const taggedGroups = Object.entries(assignments).map(([key, catId]) => {
-      const cat = categories.find(c => c.id === catId)
+      const cat    = categories.find(c => c.id === catId)
       const groupTx = debitTx.filter(tx => normalizePattern(tx.description) === key)
-      const total = groupTx.reduce((s, t) => s + Math.abs(t.amount), 0)
+      const total  = groupTx.reduce((s, t) => s + Math.abs(t.amount), 0)
       return { key, assignedCategoryId: catId, assignedCategoryName: cat?.name ?? '', total }
     }).filter(g => g.assignedCategoryId)
 
     const categoryTotals = collapseToCategories(taggedGroups, categories)
-    const budgets = calculateBudgets(categoryTotals, months, savingsPct, budgetOverrides, categories)
+    const budgets        = calculateBudgets(categoryTotals, months, savingsPct, budgetOverrides, categories)
 
-    // Build income rows
     const incomeRows = Object.entries(incomeSelections)
       .filter(([, s]) => s.checked)
       .map(([, s], i) => ({
@@ -155,12 +136,10 @@ export default function Onboarding() {
         note:     '',
         sort_order: i,
       }))
-
     if (!incomeRows.length) {
       incomeRows.push({ label: 'Income', budgeted: 0, actual: 0, note: '', sort_order: 0 })
     }
 
-    // Build expense rows — one per category
     const expenseRows = categoryTotals.map((cat, i) => ({
       label:       cat.categoryName,
       category_id: cat.categoryId,
@@ -170,33 +149,22 @@ export default function Onboarding() {
       sort_order:  i,
     }))
 
-    // Build payee rule map: pattern → categoryId
     const payeeRuleMap = {}
     for (const [key, catId] of Object.entries(assignments)) {
       if (catId) payeeRuleMap[key] = catId
     }
 
-    // Bank configs with staging IDs
-    const bankAccountsWithIds = pendingBanks.map((b, i) => ({
-      ...b,
-      stagingId: `bank-${i}`,
-    }))
+    const bankAccountsWithIds = pendingBanks.map((b, i) => ({ ...b, stagingId: `bank-${i}` }))
 
-    // Tag each transaction with its assigned category and staging bank id
     const taggedTx = allTransactions.map(tx => ({
       ...tx,
       assignedCategoryId: assignments[normalizePattern(tx.description)] ?? null,
     }))
 
     const { error } = await seedFromTransactions(user.id, {
-      incomeRows,
-      expenseRows,
-      bankAccounts: bankAccountsWithIds,
-      transactions: taggedTx,
-      payeeRuleMap,
-      userCategories,
+      incomeRows, expenseRows, bankAccounts: bankAccountsWithIds,
+      transactions: taggedTx, payeeRuleMap, userCategories,
     })
-
     return error ?? null
   }
 
@@ -205,9 +173,8 @@ export default function Onboarding() {
   }
 
   function handleAddCategory(newCat) {
-    // Temporary id until committed — WizardExpenseStep uses it for assignment keys
-    const tempId = `user-${Date.now()}`
-    const withId = { ...newCat, id: tempId, user_id: null }
+    const tempId  = `user-${Date.now()}`
+    const withId  = { ...newCat, id: tempId, user_id: null }
     setCategories(prev => [...prev, withId])
     setUserCategories(prev => [...prev, withId])
   }
@@ -215,76 +182,80 @@ export default function Onboarding() {
   const hasBanks = pendingBanks.length > 0
   const txCount  = allTransactions.length
 
+  // Fix #15 — "Spending Categories" count for done screen
+  const activeCatCount = useMemo(() => {
+    if (!assignments) return 0
+    const ids = new Set(Object.values(assignments).filter(Boolean))
+    return ids.size
+  }, [assignments])
+
   return (
     <div className="wiz-overlay-page">
       <div className="wiz-modal-page fadein">
 
-        {/* Header */}
         <div className="wiz-header">
           <div className="wiz-logo">💵 Budget Setup</div>
-          <div className="wiz-step-track">
-           <StepTrack step={step} steps={STEPS} />
-
- {/* old section         {STEPS.map((s, i) => {
-              const n   = i + 1
-              const cls = n < step ? 'done' : n === step ? 'active' : 'future'
-              return (
-                <div key={s.label} className="wiz-step-wrap">
-                  <div className={`wiz-step-dot ${cls}`}>{n < step ? '✓' : n}</div>
-                  <div className="wiz-step-label" style={{ color: n === step ? '#e8d58a' : '#6b7f94' }}>
-                    {s.label}
-                  </div>
-                  {i < STEPS.length - 1 && <div className={`wiz-step-line${n < step ? ' done' : ''}`} />}
-                </div>
-              )
-            })}
-  */}          
-          </div>
+          <StepTrack step={step} steps={STEPS} />
         </div>
 
-        {/* Body */}
         <div className="wiz-body">
           {error && <div className="alert alert-error" style={{ marginBottom: '1rem' }}>{error}</div>}
 
-          {/* Step 1: Welcome */}
+          {/* Step 1: Welcome — fix #5: goal question removed */}
           {step === 1 && (
             <div className="fadein">
               <div className="wiz-step-title">Welcome! Let's get started.</div>
               <div className="wiz-step-hint">
-                We'll walk you through importing your bank statements so your budget is built from
-                real numbers — not guesses — from day one.
+                We'll walk you through importing your bank statements so your budget
+                is built from real numbers — not guesses — from day one.
               </div>
               <div className="wiz-greeting-grid">
                 <div className="wiz-field">
-                  <label>Your name</label>
+                  <label>Your name <span style={{ color: 'var(--ink3)', fontWeight: 400 }}>(optional)</span></label>
                   <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Sarah" autoFocus />
                 </div>
                 <div className="wiz-field">
-                  <label>Household size</label>
-                  <input type="number" min="1" max="20" value={household} onChange={e => setHousehold(e.target.value)} placeholder="e.g. 4" />
-                </div>
-              </div>
-              <div className="wiz-field" style={{ marginBottom: '1rem' }}>
-                <label>What's your main goal?</label>
-                <div style={{ display: 'flex', gap: '.5rem', flexWrap: 'wrap', marginTop: '.35rem' }}>
-                  {GOALS.map(g => (
-                    <button key={g.id} className={`freq-btn${goal === g.id ? ' active' : ''}`} onClick={() => setGoal(g.id)} type="button">
-                      {g.label}
-                    </button>
-                  ))}
+                  <label>Household size <span style={{ color: 'var(--ink3)', fontWeight: 400 }}>(optional)</span></label>
+                  <input type="number" min="1" max="20" value={household}
+                    onChange={e => setHousehold(e.target.value)} placeholder="e.g. 4" />
                 </div>
               </div>
             </div>
           )}
 
-          {/* Step 2: Upload statements */}
+          {/* Step 2: Upload — fix #6: CSV export tip */}
           {step === 2 && (
             <div className="fadein">
               <div className="wiz-step-title">Upload your bank statements</div>
               <div className="wiz-step-hint">
-                Export a CSV from each bank or credit card you use. We'll analyze your transactions
-                to build your budget from real spending — no manual entry needed.
+                Export a CSV from each bank or credit card you use. We'll analyze your
+                transactions to build your budget from real spending.
               </div>
+
+              {/* Fix #6 — expandable CSV instructions */}
+              <div className="wiz-csv-tip">
+                <button
+                  className="wiz-csv-tip-toggle"
+                  onClick={() => setShowCsvTip(v => !v)}
+                >
+                  {showCsvTip ? '▲' : '▼'} How do I export a CSV from my bank?
+                </button>
+                {showCsvTip && (
+                  <div className="wiz-csv-tip-body fadein">
+                    {BANK_TIPS.map(({ bank, tip }) => (
+                      <div key={bank} className="wiz-csv-tip-row">
+                        <span className="wiz-csv-tip-bank">{bank}</span>
+                        <span className="wiz-csv-tip-text">{tip}</span>
+                      </div>
+                    ))}
+                    <p className="wiz-csv-tip-note">
+                      Tip: exporting 2–3 months of history gives Budget a more accurate
+                      baseline than a single month.
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <WizardCsvStep
                 expenseItems={[]}
                 pendingBanks={pendingBanks}
@@ -294,14 +265,13 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Step 3: Identify income */}
+          {/* Step 3: Income */}
           {step === 3 && (
             <div className="fadein">
               <div className="wiz-step-title">Which deposits are income?</div>
               <div className="wiz-step-hint">
-                We found {allTransactions.filter(t => t.amount > 0).length} deposits across your statements.
-                Check the ones that are regular income — paychecks, freelance payments, side income.
-                Uncheck transfers, refunds, or one-time deposits.
+                We found {allTransactions.filter(t => t.amount > 0).length} deposits
+                across your statements.
               </div>
               <WizardIncomeStep
                 transactions={allTransactions}
@@ -311,7 +281,7 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Step 4: Categorize expenses */}
+          {/* Step 4: Categorize */}
           {step === 4 && (
             <div className="fadein">
               <div className="wiz-step-title">Categorize your spending</div>
@@ -329,13 +299,13 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Step 5: Set budget */}
+          {/* Step 5: Budget */}
           {step === 5 && (
             <div className="fadein">
               <div className="wiz-step-title">Set your budget</div>
               <div className="wiz-step-hint">
-                Based on your real spending, here's a suggested budget. Use the slider to
-                set a savings target, or adjust any category individually.
+                Based on your real spending, here's a suggested budget. Use the slider
+                to set a savings target, or adjust any category individually.
               </div>
               <WizardBudgetStep
                 transactions={debitTx}
@@ -350,7 +320,7 @@ export default function Onboarding() {
             </div>
           )}
 
-          {/* Step 6: Done */}
+          {/* Step 6: Done — fix #15: "Spending Categories" */}
           {step === 6 && (
             <div className="fadein" style={{ textAlign: 'center' }}>
               <div style={{ fontSize: '3rem', marginBottom: '.75rem' }}>🎉</div>
@@ -358,7 +328,7 @@ export default function Onboarding() {
               <div className="wiz-step-hint" style={{ marginBottom: '1.5rem' }}>
                 {hasBanks
                   ? `We imported ${txCount} transactions, built your budget from real spending, and set your actuals from day one. Your Dashboard has real numbers.`
-                  : 'Your budget is set up with the 17 default categories. Head to Reconcile anytime to import a bank statement and populate your actuals.'}
+                  : 'Your budget is set up with 17 default categories. Head to Reconcile anytime to import a bank statement and populate your actuals.'}
               </div>
               <div className="wiz-summary-grid" style={{ marginBottom: '1.5rem', textAlign: 'left' }}>
                 <div className="wiz-scard">
@@ -371,21 +341,17 @@ export default function Onboarding() {
                   </div>
                   <div className="wiz-scard-lbl">Income Sources</div>
                 </div>
+                {/* Fix #15 — renamed from "Categories Active" */}
                 <div className="wiz-scard">
                   <div className="wiz-scard-val" style={{ color: 'var(--blue)' }}>
-                    {Object.values(assignments).filter(Boolean).length > 0
-                      ? collapseToCategories(
-                          Object.entries(assignments).filter(([,v])=>v).map(([k,v])=>({key:k,assignedCategoryId:v,assignedCategoryName:'',total:0})),
-                          categories
-                        ).length
-                      : 0}
+                    {activeCatCount}
                   </div>
-                  <div className="wiz-scard-lbl">Categories Active</div>
+                  <div className="wiz-scard-lbl">Spending Categories</div>
                 </div>
               </div>
               <div className="alert alert-info" style={{ textAlign: 'left', fontSize: '.84rem' }}>
-                💡 At the end of each month, go to <strong>🔄 Reconcile</strong> to import your latest statement
-                and apply it to your budget — your actuals update automatically.
+                💡 At the end of each month, go to <strong>🔄 Reconcile</strong> to import
+                your latest statement and apply it to your budget — your actuals update automatically.
               </div>
             </div>
           )}
@@ -413,7 +379,6 @@ export default function Onboarding() {
                 Skip — set up manually
               </button>
             )}
-
             {step < 6 && (
               <button className="btn btn-p" disabled={loading || !canAdvanceFrom(step)} onClick={handleNext}>
                 {loading
@@ -424,13 +389,10 @@ export default function Onboarding() {
               </button>
             )}
             {step === 6 && (
-              <button className="btn btn-p" onClick={handleFinish}>
-                Go to Dashboard →
-              </button>
+              <button className="btn btn-p" onClick={handleFinish}>Go to Dashboard →</button>
             )}
           </div>
         </div>
-
       </div>
     </div>
   )
