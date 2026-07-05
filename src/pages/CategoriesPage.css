@@ -118,3 +118,22 @@
 @media (max-width: 480px) {
   .cat-page-grid { grid-template-columns: 1fr; }
 }
+
+/* ── System category cards — read-only ── */
+.cat-card-system {
+  opacity: .7;
+  border-style: dashed;
+}
+
+.cat-system-badge {
+  font-size: .65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--ink3);
+  background: var(--card2);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  padding: .15rem .45rem;
+  flex-shrink: 0;
+}

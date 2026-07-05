@@ -6,15 +6,17 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { usePayeeRules } from '../hooks/usePayeeRules'
 import { useGlobalPatterns } from '../hooks/useGlobalPatterns'
+import { tagTransfers } from '../lib/transferDetection'
 import GroupedExpenseSelect from '../components/ui/GroupedExpenseSelect'
+import TransferPanel from '../components/ui/TransferPanel'
 import './ReconcilePage.css'
 
 export default function ReconcilePage({ budget, transactions: txHook, periods }) {
   const { monthly, annual, categories, loading: budgetLoading, reload: reloadBudget } = budget
   const { bankAccounts, transactions, insertTransactions, updateBankAccount, addBankAccount,
           loading: txLoading, reload: reloadTx } = txHook
-  const { user }                             = useAuth()
-  const { rules: personalRules, learnRule }  = usePayeeRules()
+  const { user }                              = useAuth()
+  const { rules: personalRules, learnRule }   = usePayeeRules()
   const { patterns: globalPatterns, contribute } = useGlobalPatterns()
 
   const fileRef = useRef(null)
@@ -25,7 +27,9 @@ export default function ReconcilePage({ budget, transactions: txHook, periods })
   const [csvHeaders,  setCsvHeaders]  = useState([])
   const [csvRows,     setCsvRows]     = useState([])
   const [colMap,      setColMap]      = useState({ dateCol: '', descCol: '', amountCol: '', amountSign: 'negative' })
-  const [preview,     setPreview]     = useState([])
+  const [preview,     setPreview]     = useState([])         // normal transactions
+  const [transfers,   setTransfers]   = useState([])         // detected transfer/payment transactions
+  const [excludedTransfers, setExcludedTransfers] = useState(new Set()) // indices of excluded transfers
   const [saving,      setSaving]      = useState(false)
   const [applying,    setApplying]    = useState(false)
   const [error,       setError]       = useState('')
@@ -34,11 +38,17 @@ export default function ReconcilePage({ budget, transactions: txHook, periods })
 
   const allExpenses = [...monthly, ...annual]
 
-  // Fix #3 — determine which bank accounts have already been imported this period
+  // Find the system "Transfers & Payments" category id
+  const transferCategoryId = useMemo(() =>
+    categories.find(c => c.is_system)?.id ?? null,
+    [categories]
+  )
+
+  // Fix #3 — already imported this period detection
   const importedThisPeriod = useMemo(() => {
     if (!periods?.viewingMonth || !transactions.length) return new Set()
     const periodStart = periods.viewingMonth
-    const periodEnd   = periodStart.slice(0, 7) + '-31' // overshoot — JS Date handles it
+    const periodEnd   = periodStart.slice(0, 7) + '-31'
     const imported    = new Set()
     for (const tx of transactions) {
       if (tx.date >= periodStart && tx.date <= periodEnd && tx.bank_account_id) {
@@ -48,15 +58,11 @@ export default function ReconcilePage({ budget, transactions: txHook, periods })
     return imported
   }, [transactions, periods?.viewingMonth])
 
-  // Fix #4 — live preview row from current colMap + first CSV row
+  // Live column preview
   const livePreview = useMemo(() => {
     if (!csvRows.length || !colMap.dateCol || !colMap.descCol || !colMap.amountCol) return null
     const row = csvRows[0]
-    return {
-      date:   row[colMap.dateCol]   ?? '—',
-      desc:   row[colMap.descCol]   ?? '—',
-      amount: row[colMap.amountCol] ?? '—',
-    }
+    return { date: row[colMap.dateCol] ?? '—', desc: row[colMap.descCol] ?? '—', amount: row[colMap.amountCol] ?? '—' }
   }, [csvRows, colMap])
 
   function handleConfirmBank() {
@@ -76,12 +82,10 @@ export default function ReconcilePage({ budget, transactions: txHook, periods })
       setCsvHeaders(headers); setCsvRows(rows)
       const acct = bankAccounts.find(b => b.id === selAcct)
       if (!creatingNew && acct?.col_date) {
-        setColMap({ dateCol: acct.col_date, descCol: acct.col_desc,
-                    amountCol: acct.col_amount, amountSign: acct.amount_sign ?? 'negative' })
+        setColMap({ dateCol: acct.col_date, descCol: acct.col_desc, amountCol: acct.col_amount, amountSign: acct.amount_sign ?? 'negative' })
       } else {
         const guess = k => headers.find(h => h.toLowerCase().includes(k)) ?? ''
-        setColMap({ dateCol: guess('date'), descCol: guess('desc') || guess('payee') || guess('memo'),
-                    amountCol: guess('amount') || guess('debit') || guess('withdrawal'), amountSign: 'negative' })
+        setColMap({ dateCol: guess('date'), descCol: guess('desc') || guess('payee') || guess('memo'), amountCol: guess('amount') || guess('debit') || guess('withdrawal'), amountSign: 'negative' })
       }
       setStage('map'); setError('')
     }
@@ -92,10 +96,23 @@ export default function ReconcilePage({ budget, transactions: txHook, periods })
     if (!colMap.dateCol || !colMap.descCol || !colMap.amountCol) {
       setError('Please select Date, Description, and Amount columns.'); return
     }
-    const raw     = extractTransactions(csvRows, colMap, selAcct || 'pending')
+    const raw = extractTransactions(csvRows, colMap, selAcct || 'pending')
     if (!raw.length) { setError('No valid transactions found. Check your column mapping.'); return }
-    const matched = autoMatch(raw, allExpenses, personalRules, globalPatterns)
-    setPreview(matched); setStage('preview'); setError('')
+
+    // Pre-pass: tag and split transfers from normal transactions
+    const tagged = tagTransfers(raw)
+    const txTransfers = tagged.filter(t => t.likelyTransfer)
+    const txNormal    = tagged.filter(t => !t.likelyTransfer)
+
+    // Auto-exclude all detected transfers initially
+    setTransfers(txTransfers)
+    setExcludedTransfers(new Set(txTransfers.map((_, i) => i)))
+
+    // Run tiered matching only on normal transactions
+    const matched = autoMatch(txNormal, allExpenses, personalRules, globalPatterns)
+    setPreview(matched)
+    setStage('preview')
+    setError('')
   }
 
   async function handleAssignMatch(index, expenseItemId) {
@@ -108,7 +125,7 @@ export default function ReconcilePage({ budget, transactions: txHook, periods })
     if (expenseItem) {
       learnRule(tx.description, expenseItemId)
       const cat = categories.find(c => c.id === expenseItem.category_id)
-      if (cat) contribute(tx.description, cat.name)
+      if (cat && !cat.is_system) contribute(tx.description, cat.name)
     }
   }
 
@@ -117,6 +134,18 @@ export default function ReconcilePage({ budget, transactions: txHook, periods })
     const suggestedCat = categories.find(c => c.name === tx.suggested_category_name)
     setPreview(prev => prev.map((t, i) => i === index
       ? { ...t, _showAssignFor: suggestedCat?.id ?? true } : t))
+  }
+
+  // Transfer panel handlers
+  function handleExcludeAllTransfers() {
+    setExcludedTransfers(new Set(transfers.map((_, i) => i)))
+  }
+  function handleToggleTransfer(i) {
+    setExcludedTransfers(prev => {
+      const next = new Set(prev)
+      next.has(i) ? next.delete(i) : next.add(i)
+      return next
+    })
   }
 
   async function handleSave() {
@@ -135,21 +164,55 @@ export default function ReconcilePage({ budget, transactions: txHook, periods })
         col_amount: colMap.amountCol, amount_sign: colMap.amountSign,
       })
     }
-    const toInsert = preview.filter(t => !t._skip).map(
-      ({ _showAssignFor, suggested_category_name, suggested_pattern,
-         suggested_hit_count, matched_source, ...t }) => ({ ...t, bank_account_id: acctId }))
-    const { error } = await insertTransactions(toInsert)
+
+    // Build the final insert set:
+    // 1. Normal transactions (non-skipped)
+    const normalToInsert = preview
+      .filter(t => !t._skip)
+      .map(({ _showAssignFor, suggested_category_name, suggested_pattern,
+               suggested_hit_count, matched_source, likelyTransfer, ...t }) =>
+        ({ ...t, bank_account_id: acctId }))
+
+    // 2. Non-excluded transfers — assigned to the system category's expense item if one exists
+    //    If no system expense item yet, they go in as unmatched (ignored: false)
+    const transfersToInsert = transfers
+      .filter((_, i) => !excludedTransfers.has(i))
+      .map(({ likelyTransfer, matched_source, ...t }) => ({
+        ...t,
+        bank_account_id: acctId,
+        ignored: false,
+        // They'll appear as unmatched in Recent Transactions — user can handle them there
+      }))
+
+    // 3. Excluded transfers go in as ignored so they're in history but don't affect anything
+    const excludedToInsert = transfers
+      .filter((_, i) => excludedTransfers.has(i))
+      .map(({ likelyTransfer, matched_source, ...t }) => ({
+        ...t,
+        bank_account_id: acctId,
+        ignored: true,
+      }))
+
+    const allToInsert = [...normalToInsert, ...transfersToInsert, ...excludedToInsert]
+    const { error } = await insertTransactions(allToInsert)
     setSaving(false)
     if (error) { setError(error.message); return }
-    const matched       = toInsert.filter(t => t.matched_expense_id).length
-    const unmatched     = toInsert.filter(t => !t.matched_expense_id && !t.ignored).length
-    const unmatchedTotal = toInsert.filter(t => !t.matched_expense_id && !t.ignored && t.amount < 0)
+
+    const matched        = normalToInsert.filter(t => t.matched_expense_id).length
+    const unmatched      = normalToInsert.filter(t => !t.matched_expense_id).length
+    const unmatchedTotal = normalToInsert
+      .filter(t => !t.matched_expense_id && t.amount < 0)
       .reduce((s, t) => s + Math.abs(t.amount), 0)
-    setImportResult({ matched, unmatched, unmatchedTotal, total: toInsert.length })
+
+    setImportResult({
+      matched, unmatched, unmatchedTotal,
+      total: normalToInsert.length,
+      transfersExcluded: excludedTransfers.size,
+      transfersIncluded: transfersToInsert.length,
+    })
     setStage('done')
   }
 
-  // Fix #10 — plain-English apply button label used below
   async function handleApplyToBudget() {
     setApplying(true); setError('')
     const { data, error } = await supabase.rpc('apply_transactions_to_budget', { p_user_id: user.id })
@@ -161,7 +224,8 @@ export default function ReconcilePage({ budget, transactions: txHook, periods })
   }
 
   function reset() {
-    setStage('bank'); setPreview([]); setCsvRows([]); setCsvHeaders([])
+    setStage('bank'); setPreview([]); setTransfers([]); setExcludedTransfers(new Set())
+    setCsvRows([]); setCsvHeaders([])
     setError(''); setNewAcctName(''); setSelAcct('')
     setImportResult(null); setApplyResult(null)
     setCreatingNew(bankAccounts.length === 0)
@@ -177,6 +241,9 @@ export default function ReconcilePage({ budget, transactions: txHook, periods })
   const suggestionCount = preview.filter(t => t.matched_source === 'global').length
   const unappliedCount  = transactions.filter(t => !t.applied && !t.ignored && t.matched_expense_id).length
 
+  // Non-system categories for the grouped dropdowns
+  const budgetCategories = categories.filter(c => !c.is_system)
+
   return (
     <div className="fadein">
       <div className="sec-hdr">
@@ -187,7 +254,6 @@ export default function ReconcilePage({ budget, transactions: txHook, periods })
       {unappliedCount > 0 && stage === 'bank' && !applyResult && (
         <div className="alert alert-info" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '.5rem' }}>
           <span><strong>{unappliedCount}</strong> matched transaction{unappliedCount === 1 ? '' : 's'} ready to add to your budget.</span>
-          {/* Fix #10 */}
           <button className="btn btn-p" style={{ fontSize: '.82rem' }} onClick={handleApplyToBudget} disabled={applying}>
             {applying ? <><span className="spinner" style={{ width: 13, height: 13 }} /> Updating…</> : '✓ Update my budget totals'}
           </button>
@@ -230,19 +296,15 @@ export default function ReconcilePage({ budget, transactions: txHook, periods })
                 </select>
               </div>
             )}
-            {/* Fix #3 — warning if selected bank already imported this period */}
             {!creatingNew && selAcct && importedThisPeriod.has(selAcct) && (
               <div className="alert alert-info" style={{ marginBottom: '1rem', fontSize: '.83rem' }}>
-                ⚠️ You've already imported a statement from this account this month.
-                Importing again will add duplicate transactions. Only continue if you're
-                importing a different date range.
+                ⚠️ You've already imported a statement from this account this month. Importing again may add duplicate transactions.
               </div>
             )}
             {(creatingNew || bankAccounts.length === 0) && (
               <div className="fg" style={{ marginBottom: '1rem' }}>
                 <label>New bank account name</label>
-                <input value={newAcctName} onChange={e => setNewAcctName(e.target.value)}
-                  placeholder="e.g. Chase Checking" autoFocus />
+                <input value={newAcctName} onChange={e => setNewAcctName(e.target.value)} placeholder="e.g. Chase Checking" autoFocus />
               </div>
             )}
             <button className="btn btn-p" onClick={handleConfirmBank}>Continue →</button>
@@ -269,21 +331,19 @@ export default function ReconcilePage({ budget, transactions: txHook, periods })
         {stage === 'map' && (
           <div className="rec-body fadein">
             <p className="rec-map-hint">
-              Found <strong>{csvRows.length}</strong> rows for <strong>{currentBankName}</strong>.
-              Map each column from your CSV.
+              Found <strong>{csvRows.length}</strong> rows for <strong>{currentBankName}</strong>. Map each column.
             </p>
             <div className="fgrid">
-              {[{ key: 'dateCol', label: 'Date column' },
-                { key: 'descCol', label: 'Description column' },
-                { key: 'amountCol', label: 'Amount column' }].map(({ key, label }) => (
-                <div className="fg" key={key}>
-                  <label>{label}</label>
-                  <select value={colMap[key]} onChange={e => setColMap(m => ({ ...m, [key]: e.target.value }))}>
-                    <option value="">— Select —</option>
-                    {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
-                  </select>
-                </div>
-              ))}
+              {[{ key: 'dateCol', label: 'Date column' }, { key: 'descCol', label: 'Description column' }, { key: 'amountCol', label: 'Amount column' }]
+                .map(({ key, label }) => (
+                  <div className="fg" key={key}>
+                    <label>{label}</label>
+                    <select value={colMap[key]} onChange={e => setColMap(m => ({ ...m, [key]: e.target.value }))}>
+                      <option value="">— Select —</option>
+                      {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                    </select>
+                  </div>
+                ))}
               <div className="fg">
                 <label>Debit amounts are…</label>
                 <select value={colMap.amountSign} onChange={e => setColMap(m => ({ ...m, amountSign: e.target.value }))}>
@@ -293,23 +353,13 @@ export default function ReconcilePage({ budget, transactions: txHook, periods })
               </div>
             </div>
 
-            {/* Fix #4 — live column mapping preview */}
             {livePreview && (
               <div className="rec-col-preview">
                 <div className="rec-col-preview-label">First transaction with these mappings:</div>
                 <div className="rec-col-preview-row">
-                  <span className="rec-col-preview-field">
-                    <span className="rec-col-preview-key">Date</span>
-                    <span className="rec-col-preview-val">{livePreview.date}</span>
-                  </span>
-                  <span className="rec-col-preview-field">
-                    <span className="rec-col-preview-key">Description</span>
-                    <span className="rec-col-preview-val">{livePreview.desc}</span>
-                  </span>
-                  <span className="rec-col-preview-field">
-                    <span className="rec-col-preview-key">Amount</span>
-                    <span className="rec-col-preview-val mono">{livePreview.amount}</span>
-                  </span>
+                  <span className="rec-col-preview-field"><span className="rec-col-preview-key">Date</span><span className="rec-col-preview-val">{livePreview.date}</span></span>
+                  <span className="rec-col-preview-field"><span className="rec-col-preview-key">Description</span><span className="rec-col-preview-val">{livePreview.desc}</span></span>
+                  <span className="rec-col-preview-field"><span className="rec-col-preview-key">Amount</span><span className="rec-col-preview-val mono">{livePreview.amount}</span></span>
                 </div>
               </div>
             )}
@@ -320,14 +370,11 @@ export default function ReconcilePage({ budget, transactions: txHook, periods })
                 <div className="rec-sample-scroll">
                   <table>
                     <thead><tr>{csvHeaders.map(h => <th key={h}>{h}</th>)}</tr></thead>
-                    <tbody>{csvRows.slice(0, 3).map((row, i) =>
-                      <tr key={i}>{csvHeaders.map(h => <td key={h}>{row[h]}</td>)}</tr>
-                    )}</tbody>
+                    <tbody>{csvRows.slice(0, 3).map((row, i) => <tr key={i}>{csvHeaders.map(h => <td key={h}>{row[h]}</td>)}</tr>)}</tbody>
                   </table>
                 </div>
               </div>
             )}
-
             <div style={{ display: 'flex', gap: '.5rem', marginTop: '1rem' }}>
               <button className="btn btn-p" onClick={handleBuildPreview}>Preview transactions →</button>
               <button className="btn btn-g" onClick={() => setStage('select')}>← Back</button>
@@ -339,21 +386,31 @@ export default function ReconcilePage({ budget, transactions: txHook, periods })
         {stage === 'preview' && (
           <div className="rec-body fadein">
             <p className="rec-map-hint">
-              <strong>{preview.filter(t => !t._skip).length}</strong> transactions for <strong>{currentBankName}</strong>.
+              <strong>{preview.filter(t => !t._skip).length}</strong> transactions
+              {transfers.length > 0 && ` + ${transfers.length} detected transfer${transfers.length === 1 ? '' : 's'}`}
+              {' '}for <strong>{currentBankName}</strong>.
             </p>
+
             <div className="rec-match-stats">
               {ruleMatchCount  > 0 && <span className="rec-stat rec-stat-rule">🎯 {ruleMatchCount} from your rules</span>}
               {fuzzyMatchCount > 0 && <span className="rec-stat rec-stat-fuzzy">✓ {fuzzyMatchCount} matched</span>}
               {suggestionCount > 0 && <span className="rec-stat rec-stat-global">💡 {suggestionCount} suggested</span>}
+              {transfers.length > 0 && <span className="rec-stat" style={{ background: '#fff8e8', color: 'var(--gold)', border: '1px solid #e8d8a8' }}>🔄 {transfers.length} transfer{transfers.length === 1 ? '' : 's'} detected</span>}
             </div>
+
+            {/* Transfer panel — shown first, above normal transactions */}
+            <TransferPanel
+              transfers={transfers}
+              excluded={excludedTransfers}
+              onExcludeAll={handleExcludeAllTransfers}
+              onToggle={handleToggleTransfer}
+            />
 
             <div className="rec-preview-list">
               {preview.map((tx, i) => {
                 const matched      = allExpenses.find(e => e.id === tx.matched_expense_id)
-                const suggestedCat = tx.suggested_category_name
-                  ? categories.find(c => c.name === tx.suggested_category_name) : null
-                const candidates   = suggestedCat
-                  ? allExpenses.filter(e => e.category_id === suggestedCat.id) : []
+                const suggestedCat = tx.suggested_category_name ? categories.find(c => c.name === tx.suggested_category_name) : null
+                const candidates   = suggestedCat ? allExpenses.filter(e => e.category_id === suggestedCat.id) : []
 
                 return (
                   <div key={i} className={`rec-tx${tx._skip ? ' rec-tx-skip' : ''}`}>
@@ -384,7 +441,6 @@ export default function ReconcilePage({ budget, transactions: txHook, periods })
                       </div>
                     )}
 
-                    {/* Fix #9 — grouped dropdown for suggestions */}
                     {!matched && tx._showAssignFor && (
                       <div className="rec-tx-assign">
                         <span style={{ fontSize: '.78rem', color: 'var(--ink3)' }}>
@@ -392,20 +448,19 @@ export default function ReconcilePage({ budget, transactions: txHook, periods })
                         </span>
                         <GroupedExpenseSelect
                           allExpenses={candidates.length ? candidates : allExpenses}
-                          categories={categories}
+                          categories={budgetCategories}
                           onChange={id => handleAssignMatch(i, id)}
                           placeholder={candidates.length ? `Select ${tx.suggested_category_name} item…` : 'Assign to budget item…'}
                         />
                       </div>
                     )}
 
-                    {/* Fix #9 — grouped dropdown for unmatched */}
                     {!matched && !tx.suggested_category_name && (
                       <div className="rec-tx-assign">
                         <span style={{ fontSize: '.78rem', color: 'var(--ink3)' }}>No match — assign to:</span>
                         <GroupedExpenseSelect
                           allExpenses={allExpenses}
-                          categories={categories}
+                          categories={budgetCategories}
                           onChange={id => handleAssignMatch(i, id)}
                         />
                       </div>
@@ -437,20 +492,21 @@ export default function ReconcilePage({ budget, transactions: txHook, periods })
                 <div className="wiz-summary-grid" style={{ marginBottom: '1rem' }}>
                   <div className="wiz-scard"><div className="wiz-scard-val">{importResult.total}</div><div className="wiz-scard-lbl">Imported</div></div>
                   <div className="wiz-scard"><div className="wiz-scard-val" style={{ color: 'var(--green)' }}>{importResult.matched}</div><div className="wiz-scard-lbl">Matched</div></div>
-                  <div className="wiz-scard">
-                    <div className="wiz-scard-val" style={{ color: importResult.unmatched > 0 ? 'var(--gold)' : 'var(--ink3)' }}>{importResult.unmatched}</div>
-                    <div className="wiz-scard-lbl">Unmatched</div>
-                  </div>
+                  <div className="wiz-scard"><div className="wiz-scard-val" style={{ color: importResult.unmatched > 0 ? 'var(--gold)' : 'var(--ink3)' }}>{importResult.unmatched}</div><div className="wiz-scard-lbl">Unmatched</div></div>
                 </div>
+                {importResult.transfersExcluded > 0 && (
+                  <div className="alert alert-info" style={{ fontSize: '.83rem', marginBottom: '1rem' }}>
+                    🔄 <strong>{importResult.transfersExcluded}</strong> credit card payment{importResult.transfersExcluded === 1 ? '' : 's'} / transfer{importResult.transfersExcluded === 1 ? '' : 's'} were excluded and saved as ignored — they won't affect your budget.
+                  </div>
+                )}
                 {importResult.unmatched > 0 && (
                   <div className="alert alert-info" style={{ fontSize: '.83rem', marginBottom: '1rem' }}>
-                    💡 <strong>{fmt(importResult.unmatchedTotal)}</strong> across {importResult.unmatched} transaction{importResult.unmatched === 1 ? '' : 's'} couldn't be matched. Assign them in the Recent Transactions list below, then update your budget totals.
+                    💡 <strong>{fmt(importResult.unmatchedTotal)}</strong> across {importResult.unmatched} unmatched transaction{importResult.unmatched === 1 ? '' : 's'}. Assign them in Recent Transactions below.
                   </div>
                 )}
               </div>
             )}
 
-            {/* Fix #10 — plain-English button label */}
             {!applyResult ? (
               <div className="rec-apply-box">
                 <div className="rec-apply-title">Add these transactions to your budget</div>
@@ -461,9 +517,7 @@ export default function ReconcilePage({ budget, transactions: txHook, periods })
                 </p>
                 {error && <div className="alert alert-error" style={{ marginBottom: '.75rem' }}>{error}</div>}
                 <button className="btn btn-p" onClick={handleApplyToBudget} disabled={applying}>
-                  {applying
-                    ? <><span className="spinner" style={{ width: 14, height: 14 }} /> Updating…</>
-                    : '✓ Update my budget with these transactions'}
+                  {applying ? <><span className="spinner" style={{ width: 14, height: 14 }} /> Updating…</> : '✓ Update my budget with these transactions'}
                 </button>
                 <button className="btn btn-g" style={{ marginLeft: '.5rem' }} onClick={reset}>Skip for now</button>
               </div>
@@ -489,36 +543,29 @@ export default function ReconcilePage({ budget, transactions: txHook, periods })
         <div style={{ marginTop: '2rem' }}>
           <div className="sec-hdr">
             <span className="sec-title">Recent Transactions</span>
-            <span className="sec-hint">{transactions.length} total · {transactions.filter(t => t.applied).length} counted</span>
+            <span className="sec-hint">{transactions.length} total · {transactions.filter(t => t.applied).length} counted · {transactions.filter(t => t.ignored).length} excluded</span>
           </div>
           <div className="tbl-wrap">
             <table>
               <thead>
-                <tr>
-                  <th>Date</th><th>Description</th><th>Account</th>
-                  <th className="r">Amount</th><th>Matched to</th><th>Status</th>
-                </tr>
+                <tr><th>Date</th><th>Description</th><th>Account</th><th className="r">Amount</th><th>Matched to</th><th>Status</th></tr>
               </thead>
               <tbody>
                 {recentTx.map(tx => {
                   const matched = allExpenses.find(e => e.id === tx.matched_expense_id)
                   const acct    = bankAccounts.find(b => b.id === tx.bank_account_id)
                   return (
-                    <tr key={tx.id} style={{ opacity: tx.applied ? .6 : 1 }}>
+                    <tr key={tx.id} style={{ opacity: tx.applied || tx.ignored ? .6 : 1 }}>
                       <td className="mono" style={{ fontSize: '.8rem', color: 'var(--ink3)' }}>{tx.date}</td>
                       <td style={{ fontSize: '.85rem' }}>{tx.description}</td>
                       <td style={{ fontSize: '.8rem', color: 'var(--ink3)' }}>{acct?.name ?? '—'}</td>
                       <td className={`r mono ${tx.amount < 0 ? 'v-red' : 'v-green'}`}>{fmt(tx.amount)}</td>
-                      <td>{matched
-                        ? <span style={{ fontSize: '.8rem', color: 'var(--green)' }}>✓ {matched.label}</span>
-                        : <span style={{ fontSize: '.8rem', color: 'var(--ink3)' }}>—</span>}
-                      </td>
+                      <td>{matched ? <span style={{ fontSize: '.8rem', color: 'var(--green)' }}>✓ {matched.label}</span> : <span style={{ fontSize: '.8rem', color: 'var(--ink3)' }}>—</span>}</td>
                       <td>
-                        {tx.applied
-                          ? <span style={{ fontSize: '.75rem', color: 'var(--ink3)' }}>counted</span>
-                          : tx.matched_expense_id
-                            ? <span style={{ fontSize: '.75rem', color: 'var(--gold)' }}>pending</span>
-                            : <span style={{ fontSize: '.75rem', color: 'var(--red)' }}>unmatched</span>}
+                        {tx.ignored  ? <span style={{ fontSize: '.75rem', color: 'var(--ink3)' }}>excluded</span>
+                        : tx.applied ? <span style={{ fontSize: '.75rem', color: 'var(--ink3)' }}>counted</span>
+                        : tx.matched_expense_id ? <span style={{ fontSize: '.75rem', color: 'var(--gold)' }}>pending</span>
+                        : <span style={{ fontSize: '.75rem', color: 'var(--red)' }}>unmatched</span>}
                       </td>
                     </tr>
                   )

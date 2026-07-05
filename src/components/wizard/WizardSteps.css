@@ -323,3 +323,30 @@
   padding: .75rem 1rem;
   margin-bottom: 1rem;
 }
+
+/* ── Transfer detection in income step ── */
+.wiz-transfer-notice {
+  background: #fff8e8;
+  border: 1px solid #e8d8a8;
+  border-radius: var(--radius-sm);
+  padding: .75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.wiz-transfer-notice-hdr {
+  font-size: .84rem;
+  font-weight: 600;
+  color: var(--gold);
+  margin-bottom: .25rem;
+}
+
+.wiz-transfer-badge {
+  font-size: .68rem;
+  font-weight: 600;
+  color: var(--gold);
+  background: #fff0c0;
+  border: 1px solid #e8d090;
+  border-radius: 999px;
+  padding: .1rem .45rem;
+  white-space: nowrap;
+}

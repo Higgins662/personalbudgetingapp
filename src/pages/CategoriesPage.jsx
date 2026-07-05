@@ -19,9 +19,12 @@ export default function CategoriesPage({ budget }) {
 
   if (loading) return <div className="loading-center"><span className="spinner" /> Loading…</div>
 
+  const userCategories   = categories.filter(c => !c.is_system)
+  const systemCategories = categories.filter(c => c.is_system)
+
   async function handleAdd() {
     if (!newName.trim()) return
-    await addCategory({ name: newName.trim(), color: newColor, description: newDesc.trim(), enabled: true })
+    await addCategory({ name: newName.trim(), color: newColor, description: newDesc.trim(), enabled: true, is_system: false })
     setNewName(''); setNewDesc(''); setNewColor(PRESET_COLORS[0]); setShowAdd(false)
   }
 
@@ -32,11 +35,11 @@ export default function CategoriesPage({ budget }) {
         <span className="sec-hint">Color-code your expenses</span>
       </div>
 
+      {/* User-defined categories — editable */}
       <div className="cat-page-grid">
-        {categories.map(cat => (
+        {userCategories.map(cat => (
           <div key={cat.id} className="cat-card card">
             <div className="cat-card-top">
-              {/* Color swatch — clicking opens native color picker */}
               <label className="color-swatch" style={{ background: cat.color }} title="Change color">
                 <input
                   type="color"
@@ -45,26 +48,12 @@ export default function CategoriesPage({ budget }) {
                   className="color-input"
                 />
               </label>
-
               <div className="cat-card-body">
-                <EditableCell
-                  value={cat.name}
-                  onSave={v => updateCategory(cat.id, 'name', v)}
-                  className="cat-card-name"
-                />
-                <EditableCell
-                  value={cat.description || ''}
-                  onSave={v => updateCategory(cat.id, 'description', v)}
-                  className="cat-card-desc"
-                />
+                <EditableCell value={cat.name} onSave={v => updateCategory(cat.id, 'name', v)} className="cat-card-name" />
+                <EditableCell value={cat.description || ''} onSave={v => updateCategory(cat.id, 'description', v)} className="cat-card-desc" />
               </div>
-
               <div className="cat-card-actions">
-                <button
-                  className="del-btn"
-                  onClick={() => deleteCategory(cat.id)}
-                  title="Delete category"
-                >×</button>
+                <button className="del-btn" onClick={() => deleteCategory(cat.id)} title="Delete category">×</button>
               </div>
             </div>
           </div>
@@ -83,50 +72,54 @@ export default function CategoriesPage({ budget }) {
           <div className="fgrid">
             <div className="fg">
               <label>Name</label>
-              <input
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-                placeholder="e.g. Entertainment"
-                autoFocus
-                onKeyDown={e => e.key === 'Enter' && handleAdd()}
-              />
+              <input value={newName} onChange={e => setNewName(e.target.value)}
+                placeholder="e.g. Entertainment" autoFocus onKeyDown={e => e.key === 'Enter' && handleAdd()} />
             </div>
             <div className="fg">
               <label>Description</label>
-              <input
-                value={newDesc}
-                onChange={e => setNewDesc(e.target.value)}
-                placeholder="Optional"
-              />
+              <input value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Optional" />
             </div>
           </div>
-
           <div className="fg" style={{ marginBottom: '.75rem' }}>
             <label>Color</label>
             <div className="color-presets">
               {PRESET_COLORS.map(c => (
-                <button
-                  key={c}
-                  className={`color-preset${newColor === c ? ' selected' : ''}`}
-                  style={{ background: c }}
-                  onClick={() => setNewColor(c)}
-                />
+                <button key={c} className={`color-preset${newColor === c ? ' selected' : ''}`}
+                  style={{ background: c }} onClick={() => setNewColor(c)} />
               ))}
               <label className="color-custom" title="Custom color">
-                <input
-                  type="color"
-                  value={newColor}
-                  onChange={e => setNewColor(e.target.value)}
-                  className="color-input"
-                />
+                <input type="color" value={newColor} onChange={e => setNewColor(e.target.value)} className="color-input" />
                 ✎
               </label>
             </div>
           </div>
-
           <div style={{ display: 'flex', gap: '.5rem' }}>
             <button className="btn btn-p" onClick={handleAdd}>Add category</button>
             <button className="btn btn-g" onClick={() => setShowAdd(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* System categories — read-only, shown at the bottom */}
+      {systemCategories.length > 0 && (
+        <div style={{ marginTop: '2rem' }}>
+          <div className="sec-hdr" style={{ marginBottom: '.75rem' }}>
+            <span className="sec-title" style={{ fontSize: '1rem', color: 'var(--ink3)' }}>System Categories</span>
+            <span className="sec-hint">Managed automatically — cannot be deleted</span>
+          </div>
+          <div className="cat-page-grid">
+            {systemCategories.map(cat => (
+              <div key={cat.id} className="cat-card card cat-card-system">
+                <div className="cat-card-top">
+                  <span className="color-swatch" style={{ background: cat.color, cursor: 'default' }} />
+                  <div className="cat-card-body">
+                    <span className="cat-card-name">{cat.name}</span>
+                    <span className="cat-card-desc">{cat.description}</span>
+                  </div>
+                  <span className="cat-system-badge">system</span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
