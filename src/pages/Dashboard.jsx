@@ -37,7 +37,7 @@ export default function Dashboard({ budget, goalsHook, periods, onTabChange }) {
     ...activeAnnual.map(e => ({ ...e, budgeted: e.budgeted / 12, actual: e.actual / 12 })),
   ]
 
-  const catSummary = categories.map(cat => {
+  const catSummary = categories.filter(c => !c.is_system).map(cat => {
     const rows = allExpenses.filter(e => e.category_id === cat.id)
     const bud  = rows.reduce((s, r) => s + (r.budgeted || 0), 0)
     const act  = rows.reduce((s, r) => s + (r.actual   || 0), 0)
