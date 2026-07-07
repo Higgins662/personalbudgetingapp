@@ -424,3 +424,70 @@ main {
   padding: .2rem .4rem; outline: none;
   background: var(--card); color: var(--ink);
 }
+
+/* ── Modal — used by ClearMonthModal and any future confirmation dialogs ── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .45);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.modal-box {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  padding: 2rem;
+  max-width: 480px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+
+.modal-icon {
+  font-size: 2rem;
+  text-align: center;
+}
+
+.modal-title {
+  font-family: 'DM Serif Display', serif;
+  font-size: 1.3rem;
+  color: var(--ink);
+  text-align: center;
+}
+
+.modal-body {
+  font-size: .875rem;
+  color: var(--ink2);
+  line-height: 1.65;
+  margin: 0;
+}
+
+.modal-actions {
+  display: flex;
+  gap: .75rem;
+  justify-content: flex-end;
+  margin-top: .5rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+  .modal-box { padding: 1.5rem; }
+  .modal-actions { flex-direction: column-reverse; }
+  .modal-actions .btn { width: 100%; justify-content: center; }
+}
+
+.pay-badge {
+  background: #f0f4f8;
+  color: var(--ink2);
+  border: 1px solid var(--border2);
+}
+.pay-badge:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+}

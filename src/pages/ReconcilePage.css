@@ -365,3 +365,18 @@
 @media (max-width: 600px) {
   .rec-tx-suggestion, .rec-tx-assign { flex-direction: column; align-items: flex-start; }
 }
+
+/* ── Start-over link in Recent Transactions header ── */
+.rec-startover-link {
+  background: none;
+  border: none;
+  font-family: 'Outfit', sans-serif;
+  font-size: .78rem;
+  color: var(--ink3);
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+.rec-startover-link:hover { color: var(--red); }
