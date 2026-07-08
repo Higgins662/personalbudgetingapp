@@ -176,8 +176,8 @@ export default function WizardCsvStep({ expenseItems, pendingBanks, onAddBank, o
             <div className="fg">
               <label>Debits are…</label>
               <select value={colMap.amountSign} onChange={e => setColMap(m => ({ ...m, amountSign: e.target.value }))}>
-                <option value="negative">Negative numbers (−$50)</option>
-                <option value="positive">Positive numbers ($50)</option>
+                <option value="negative">Negative (−$50)</option>
+                <option value="positive">Positive ($50)</option>
               </select>
             </div>
           </div>
