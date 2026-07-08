@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { seedCategories, seedFallbackBudget, seedFromTransactions } from '../lib/seed'
 import { DEFAULT_CATEGORIES } from '../lib/seedData'
-import { collapseToCategories, calculateBudgets } from '../lib/transactionAnalysis'
+import { collapseToCategories, calculateBudgets, estimateMonths } from '../lib/transactionAnalysis'
 import { normalizePattern } from '../lib/fuzzyMatch'
 import { fmt } from '../lib/format'
 import WizardCsvStep from '../components/wizard/WizardCsvStep'
@@ -114,7 +114,6 @@ export default function Onboarding() {
   }
 
   async function handleCommit() {
-    const { estimateMonths } = await import('../lib/transactionAnalysis')
     const months = estimateMonths(allTransactions)
 
     const taggedGroups = Object.entries(assignments).map(([key, catId]) => {
