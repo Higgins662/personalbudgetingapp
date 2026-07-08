@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react'
 import { parseCSV, getCSVHeaders, extractTransactions } from '../../lib/csvParser'
-import { autoMatch } from '../../lib/fuzzyMatch'
 
 /**
  * Step 4 of the setup wizard: upload one or more bank statement CSVs.
@@ -71,13 +70,11 @@ export default function WizardCsvStep({ expenseItems, pendingBanks, onAddBank, o
       setError('No valid transactions found. Check your column mapping.')
       return
     }
-    const matched = autoMatch(raw, expenseItems)
-
     onAddBank({
       name: bankName.trim() || 'Unnamed Account',
       colMap,
       fileName: csvFile?.name ?? '',
-      transactions: matched,
+      transactions: raw,
     })
     resetForm()
   }
