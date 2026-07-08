@@ -86,7 +86,12 @@ export default function ReconcilePage({ budget, transactions: txHook, periods, o
   const livePreview = useMemo(() => {
     if (!csvRows.length || !colMap.dateCol || !colMap.descCol || !colMap.amountCol) return null
     const row = csvRows[0]
-    return { date: row[colMap.dateCol] ?? '—', desc: row[colMap.descCol] ?? '—', amount: row[colMap.amountCol] ?? '—' }
+    return {
+      date:   row[colMap.dateCol]   ?? '—',
+      desc:   row[colMap.descCol]   ?? '—',
+      amount: row[colMap.amountCol] ?? '—',
+      credit: colMap.creditCol ? (row[colMap.creditCol] ?? '—') : null,
+    }
   }, [csvRows, colMap])
 
   function handleConfirmBank() {
@@ -165,7 +170,7 @@ export default function ReconcilePage({ budget, transactions: txHook, periods, o
     setSaving(true); setError('')
     let acctId = selAcct
     if (creatingNew) {
-      const { data, error } = await addBankAccount({ name: newAcctName.trim(), col_date: colMap.dateCol, col_desc: colMap.descCol, col_amount: colMap.amountCol, amount_sign: colMap.amountSign })
+      const { data, error } = await addBankAccount({ name: newAcctName.trim(), col_date: colMap.dateCol, col_desc: colMap.descCol, col_amount: colMap.amountCol, amount_sign: colMap.amountSign, col_credit: colMap.creditCol || null })
       if (error) { setError(error.message); setSaving(false); return }
       acctId = data.id
     } else {
@@ -327,7 +332,16 @@ export default function ReconcilePage({ budget, transactions: txHook, periods, o
                 <div className="rec-col-preview-row">
                   <span className="rec-col-preview-field"><span className="rec-col-preview-key">Date</span><span className="rec-col-preview-val">{livePreview.date}</span></span>
                   <span className="rec-col-preview-field"><span className="rec-col-preview-key">Description</span><span className="rec-col-preview-val">{livePreview.desc}</span></span>
-                  <span className="rec-col-preview-field"><span className="rec-col-preview-key">Amount</span><span className="rec-col-preview-val mono">{livePreview.amount}</span></span>
+                  <span className="rec-col-preview-field">
+                    <span className="rec-col-preview-key">{colMap.amountSign === 'split' ? 'Debits' : 'Amount'}</span>
+                    <span className="rec-col-preview-val mono">{livePreview.amount}</span>
+                  </span>
+                  {livePreview.credit !== null && (
+                    <span className="rec-col-preview-field">
+                      <span className="rec-col-preview-key">Credits</span>
+                      <span className="rec-col-preview-val mono">{livePreview.credit}</span>
+                    </span>
+                  )}
                 </div>
               </div>
             )}
