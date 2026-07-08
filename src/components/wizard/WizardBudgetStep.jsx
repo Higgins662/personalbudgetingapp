@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import { fmt } from '../../lib/format'
 import { collapseToCategories, calculateBudgets, estimateMonths } from '../../lib/transactionAnalysis'
+import { normalizePattern } from '../../lib/fuzzyMatch'
 import './WizardSteps.css'
 
 /**
@@ -28,7 +29,6 @@ export default function WizardBudgetStep({
 }) {
   // Tag each transaction with its assigned category
   const taggedTx = useMemo(() => transactions.map(tx => {
-    const { normalizePattern } = require('../../lib/fuzzyMatch')
     const key = normalizePattern(tx.description)
     return { ...tx, assignedCategoryId: assignments[key] ?? null }
   }), [transactions, assignments])
@@ -39,10 +39,9 @@ export default function WizardBudgetStep({
     collapseToCategories(
       Object.entries(assignments).map(([key, catId]) => {
         const cat = categories.find(c => c.id === catId)
-        const groupTx = taggedTx.filter(tx => {
-          const { normalizePattern } = require('../../lib/fuzzyMatch')
-          return normalizePattern(tx.description) === key
-        })
+        const groupTx = taggedTx.filter(tx =>
+          normalizePattern(tx.description) === key
+        )
         const total = groupTx.reduce((s, t) => s + Math.abs(t.amount), 0)
         return { key, assignedCategoryId: catId, assignedCategoryName: cat?.name ?? '', total, groups: [] }
       }),
