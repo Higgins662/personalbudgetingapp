@@ -360,7 +360,7 @@ export default function Onboarding() {
         <div className="wiz-footer">
           {step > 1 && step < 6
             ? <button className="wiz-skip" onClick={() => setStep(s => s - 1)}>← Back</button>
-            : <span />}
+            : <span style={{ flex: 1 }} />}
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <span style={{ fontSize: '.78rem', color: 'var(--ink3)' }}>Step {step} of {STEPS.length}</span>
