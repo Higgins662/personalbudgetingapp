@@ -45,43 +45,98 @@ function splitCSVLine(line) {
 /**
  * Given parsed CSV rows and a column mapping, extract transactions.
  * @param {Array}  rows       — raw parsed rows from parseCSV()
- * @param {Object} colMap     — { dateCol, descCol, amountCol, amountSign }
+ * @param {Object} colMap     — { dateCol, descCol, amountCol, amountSign, creditCol }
  *   amountSign: 'negative' = debits are negative numbers (standard)
  *               'positive' = debits are positive numbers (some banks)
  *               'split'    = separate debit/credit columns
+ *   creditCol:  (optional) separate deposits/credits column — used when amountSign = 'split'
  * @param {string} bankAccountId
  * @returns {Array} of transaction objects ready for DB insert
  */
 export function extractTransactions(rows, colMap, bankAccountId) {
-  const { dateCol, descCol, amountCol, amountSign = 'negative' } = colMap
+  const { dateCol, descCol, amountCol, amountSign = 'negative', creditCol = '' } = colMap
   const results = []
 
   for (const row of rows) {
-    const rawDate   = row[dateCol]?.trim()
-    const rawDesc   = row[descCol]?.trim()
-    const rawAmount = row[amountCol]?.trim().replace(/[$,]/g, '')
+    const rawDate = row[dateCol]?.trim()
+    const rawDesc = row[descCol]?.trim()
 
-    if (!rawDate || !rawDesc || !rawAmount) continue
+    if (!rawDate || !rawDesc) continue
 
-    const date   = parseDate(rawDate)
-    const amount = parseFloat(rawAmount)
+    const date = parseDate(rawDate)
+    if (!date) continue
 
-    if (!date || isNaN(amount)) continue
+    let amount
 
-    // Normalize so that debits are negative
-    const normalized = amountSign === 'positive' ? -Math.abs(amount) : amount
+    if (amountSign === 'split' && creditCol) {
+      // Split columns: debit column = expense (stored negative),
+      // credit column = income/deposit (stored positive).
+      // A row will typically have a value in one column and empty in the other.
+      const rawDebit  = row[amountCol]?.trim().replace(/[$,]/g, '')
+      const rawCredit = row[creditCol]?.trim().replace(/[$,]/g, '')
+
+      const debit  = rawDebit  ? parseFloat(rawDebit)  : NaN
+      const credit = rawCredit ? parseFloat(rawCredit) : NaN
+
+      if (!isNaN(debit) && debit !== 0) {
+        amount = -Math.abs(debit)   // debits are always stored negative
+      } else if (!isNaN(credit) && credit !== 0) {
+        amount = Math.abs(credit)   // credits are always stored positive
+      } else {
+        continue // both empty or zero — skip the row
+      }
+    } else {
+      // Single amount column
+      const rawAmount = row[amountCol]?.trim().replace(/[$,]/g, '')
+      if (!rawAmount) continue
+      const parsed = parseFloat(rawAmount)
+      if (isNaN(parsed)) continue
+      amount = amountSign === 'positive' ? -Math.abs(parsed) : parsed
+    }
 
     results.push({
       bank_account_id: bankAccountId,
       date:            date.toISOString().split('T')[0],
       description:     rawDesc,
-      amount:          normalized,
+      amount,
       ignored:         false,
       applied:         false,
     })
   }
 
   return results
+}
+
+/**
+ * Auto-detect whether a CSV likely uses split debit/credit columns.
+ * Returns true if headers contain a debit-like AND credit-like column.
+ */
+export function detectSplitColumns(headers) {
+  const lower = headers.map(h => h.toLowerCase())
+  const hasDebit  = lower.some(h => h.includes('debit')    || h.includes('withdrawal') || h.includes('charge'))
+  const hasCredit = lower.some(h => h.includes('credit')   || h.includes('deposit')    || h.includes('payment'))
+  return hasDebit && hasCredit
+}
+
+/**
+ * Given headers, guess the best column for each field.
+ * Returns a partial colMap with only the fields we're confident about.
+ */
+export function guessColMap(headers) {
+  const lower = headers.map(h => h.toLowerCase())
+  const find  = (...terms) => headers[lower.findIndex(h => terms.some(t => h.includes(t)))] ?? ''
+
+  const isSplit = detectSplitColumns(headers)
+
+  return {
+    dateCol:   find('date'),
+    descCol:   find('description', 'desc', 'payee', 'memo', 'narrative'),
+    amountCol: isSplit
+      ? find('debit', 'withdrawal', 'charge')
+      : find('amount', 'debit', 'withdrawal'),
+    creditCol: isSplit ? find('credit', 'deposit') : '',
+    amountSign: isSplit ? 'split' : 'negative',
+  }
 }
 
 /** Try common date formats */
