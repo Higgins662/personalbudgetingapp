@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { parseCSV, getCSVHeaders, extractTransactions } from '../../lib/csvParser'
+import { parseCSV, getCSVHeaders, extractTransactions, guessColMap } from '../../lib/csvParser'
 
 /**
  * Step 4 of the setup wizard: upload one or more bank statement CSVs.
@@ -24,13 +24,13 @@ export default function WizardCsvStep({ expenseItems, pendingBanks, onAddBank, o
   const [csvFile, setCsvFile] = useState(null)
   const [csvHeaders, setCsvHeaders] = useState([])
   const [csvRows, setCsvRows] = useState([])
-  const [colMap, setColMap] = useState({ dateCol: '', descCol: '', amountCol: '', amountSign: 'negative' })
+  const [colMap, setColMap] = useState({ dateCol: '', descCol: '', amountCol: '', amountSign: 'negative', creditCol: '' })
   const [error, setError] = useState('')
 
   function resetForm() {
     setStage('name'); setBankName(''); setCsvFile(null)
     setCsvHeaders([]); setCsvRows([])
-    setColMap({ dateCol: '', descCol: '', amountCol: '', amountSign: 'negative' })
+    setColMap({ dateCol: '', descCol: '', amountCol: '', amountSign: 'negative', creditCol: '' })
     setError('')
     if (fileRef.current) fileRef.current.value = ''
   }
@@ -46,14 +46,7 @@ export default function WizardCsvStep({ expenseItems, pendingBanks, onAddBank, o
       setCsvFile(file)
       setCsvHeaders(headers)
       setCsvRows(rows)
-
-      const guess = k => headers.find(h => h.toLowerCase().includes(k)) ?? ''
-      setColMap({
-        dateCol: guess('date') || guess('posted'),
-        descCol: guess('desc') || guess('payee') || guess('memo') || guess('merchant'),
-        amountCol: guess('amount') || guess('debit') || guess('withdrawal'),
-        amountSign: 'negative',
-      })
+      setColMap(guessColMap(headers))
       setStage('map')
       setError('')
     }
@@ -172,13 +165,26 @@ export default function WizardCsvStep({ expenseItems, pendingBanks, onAddBank, o
             </div>
             <div className="fg">
               <label>Debits are…</label>
-              <select value={colMap.amountSign} onChange={e => setColMap(m => ({ ...m, amountSign: e.target.value }))}>
+              <select value={colMap.amountSign} onChange={e => {
+                const sign = e.target.value
+                setColMap(m => ({ ...m, amountSign: sign, creditCol: sign !== 'split' ? '' : m.creditCol }))
+              }}>
                 <option value="negative">Negative (−$50)</option>
                 <option value="positive">Positive ($50)</option>
+                <option value="split">Separate debit + credit columns</option>
               </select>
             </div>
           </div>
 
+          {colMap.amountSign === 'split' && (
+            <div className="fg">
+              <label>Deposits / Credits column</label>
+              <select value={colMap.creditCol} onChange={e => setColMap(m => ({ ...m, creditCol: e.target.value }))}>
+                <option value="">— Select —</option>
+                {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+              </select>
+            </div>
+          )}
           <div className="btn-row" style={{ justifyContent: 'space-between' }}>
             <button className="btn btn-g" onClick={() => setStage('upload')}>← Back</button>
             <button className="btn btn-p" onClick={handleAddThisBank}>Add this bank →</button>
