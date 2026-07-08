@@ -154,8 +154,13 @@ export async function seedFromTransactions(userId, {
     applied:  false,
   }))
 
-  const { error: txErr } = await supabase.from('transactions').insert(txRows)
-  if (txErr) return { error: txErr }
+  // Insert transactions in batches of 500 to avoid Supabase payload limits
+  const BATCH_SIZE = 500
+  for (let i = 0; i < txRows.length; i += BATCH_SIZE) {
+    const batch = txRows.slice(i, i + BATCH_SIZE)
+    const { error: txErr } = await supabase.from('transactions').insert(batch)
+    if (txErr) return { error: txErr }
+  }
 
   // 5. Insert payee rules — resolve temp category ids
   if (payeeRuleMap && Object.keys(payeeRuleMap).length) {
