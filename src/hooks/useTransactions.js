@@ -53,12 +53,19 @@ export function useTransactions() {
   // ── Transactions ───────────────────────────────────────────────────────────
   async function insertTransactions(rows) {
     const tagged = rows.map(r => ({ ...r, user_id: user.id }))
-    const { data, error } = await supabase
-      .from('transactions')
-      .insert(tagged)
-      .select()
-    if (!error) setTransactions(prev => [...(data ?? []), ...prev])
-    return { data, error }
+    const BATCH_SIZE = 500
+    const allData = []
+    for (let i = 0; i < tagged.length; i += BATCH_SIZE) {
+      const batch = tagged.slice(i, i + BATCH_SIZE)
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert(batch)
+        .select()
+      if (error) return { data: null, error }
+      allData.push(...(data ?? []))
+    }
+    setTransactions(prev => [...allData, ...prev])
+    return { data: allData, error: null }
   }
 
   async function updateTransaction(id, fields) {
