@@ -495,3 +495,12 @@ main {
   border-color: var(--blue);
   color: var(--blue);
 }
+
+/* ── Button row — Back left, primary action right ── */
+.btn-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  margin-top: 1rem;
+}
