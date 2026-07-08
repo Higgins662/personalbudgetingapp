@@ -117,13 +117,15 @@ export default function WizardCsvStep({ expenseItems, pendingBanks, onAddBank, o
               autoFocus
             />
           </div>
-          <button
-            className="btn btn-p"
-            disabled={!bankName.trim()}
-            onClick={() => { setStage('upload') }}
-          >
-            Continue →
-          </button>
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              className="btn btn-p"
+              disabled={!bankName.trim()}
+              onClick={() => { setStage('upload') }}
+            >
+              Continue →
+            </button>
+          </div>
         </div>
       )}
 
@@ -136,7 +138,9 @@ export default function WizardCsvStep({ expenseItems, pendingBanks, onAddBank, o
             <div className="wiz-csv-zone-hint">Exported from your bank's website or app</div>
             <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} style={{ display: 'none' }} />
           </div>
-          <button className="btn btn-g" onClick={() => setStage('name')}>← Back</button>
+          <div className="btn-row" style={{ justifyContent: 'space-between' }}>
+            <button className="btn btn-g" onClick={() => setStage('name')}>← Back</button>
+          </div>
         </div>
       )}
 
@@ -178,9 +182,9 @@ export default function WizardCsvStep({ expenseItems, pendingBanks, onAddBank, o
             </div>
           </div>
 
-          <div className="btn-row">
-            <button className="btn btn-p" onClick={handleAddThisBank}>Add this bank →</button>
+          <div className="btn-row" style={{ justifyContent: 'space-between' }}>
             <button className="btn btn-g" onClick={() => setStage('upload')}>← Back</button>
+            <button className="btn btn-p" onClick={handleAddThisBank}>Add this bank →</button>
           </div>
         </div>
       )}
