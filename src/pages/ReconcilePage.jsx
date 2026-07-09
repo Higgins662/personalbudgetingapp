@@ -122,8 +122,15 @@ export default function ReconcilePage({ budget, transactions: txHook, periods, o
   }
 
   function handleBuildPreview() {
-    if (!colMap.dateCol || !colMap.descCol || !colMap.amountCol) {
-      setError('Please select Date, Description, and Amount columns.'); return
+    const splitMode = colMap.amountSign === 'split'
+    if (!colMap.dateCol || !colMap.descCol) {
+      setError('Please select Date and Description columns.'); return
+    }
+    if (splitMode && (!colMap.amountCol || !colMap.creditCol)) {
+      setError('Please select both the Debits and Credits columns.'); return
+    }
+    if (!splitMode && !colMap.amountCol) {
+      setError('Please select the Amount column.'); return
     }
     const raw = extractTransactions(csvRows, colMap, selAcct || 'pending')
     if (!raw.length) { setError('No valid transactions found. Check your column mapping.'); return }
@@ -309,7 +316,7 @@ export default function ReconcilePage({ budget, transactions: txHook, periods, o
           <div className="rec-body fadein">
             <p className="rec-map-hint">Found <strong>{csvRows.length}</strong> rows for <strong>{currentBankName}</strong>. Map each column.</p>
             <div className="fgrid">
-              {[{ key: 'dateCol', label: 'Date column' }, { key: 'descCol', label: 'Description column' }, { key: 'amountCol', label: 'Amount column' }].map(({ key, label }) => (
+              {[{ key: 'dateCol', label: 'Date column' }, { key: 'descCol', label: 'Description column' }].map(({ key, label }) => (
                 <div className="fg" key={key}>
                   <label>{label}</label>
                   <select value={colMap[key]} onChange={e => setColMap(m => ({ ...m, [key]: e.target.value }))}>
@@ -318,14 +325,66 @@ export default function ReconcilePage({ budget, transactions: txHook, periods, o
                   </select>
                 </div>
               ))}
+
+              {/* Single amount column */}
+              {colMap.amountSign !== 'split' && (
+                <div className="fg">
+                  <label>Amount column</label>
+                  <select value={colMap.amountCol} onChange={e => setColMap(m => ({ ...m, amountCol: e.target.value }))}>
+                    <option value="">— Select —</option>
+                    {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </div>
+              )}
+
               <div className="fg">
-                <label>Debit amounts are…</label>
-                <select value={colMap.amountSign} onChange={e => setColMap(m => ({ ...m, amountSign: e.target.value }))}>
-                  <option value="negative">Negative (−$50)</option>
-                  <option value="positive">Positive ($50)</option>
+                <label>How many amount columns?</label>
+                <select
+                  value={colMap.amountSign === 'split' ? '2' : '1'}
+                  onChange={e => {
+                    if (e.target.value === '2') {
+                      setColMap(m => ({ ...m, amountSign: 'split', amountCol: '', creditCol: '' }))
+                    } else {
+                      setColMap(m => ({ ...m, amountSign: 'negative', creditCol: '' }))
+                    }
+                  }}
+                >
+                  <option value="1">1 — single amount column</option>
+                  <option value="2">2 — separate debits &amp; credits columns</option>
                 </select>
               </div>
+
+              {/* Single column — show sign selector */}
+              {colMap.amountSign !== 'split' && (
+                <div className="fg">
+                  <label>Debit amounts are…</label>
+                  <select value={colMap.amountSign} onChange={e => setColMap(m => ({ ...m, amountSign: e.target.value }))}>
+                    <option value="negative">Negative (−$50)</option>
+                    <option value="positive">Positive ($50)</option>
+                  </select>
+                </div>
+              )}
             </div>
+
+            {/* Two-column mode */}
+            {colMap.amountSign === 'split' && (
+              <div className="fgrid" style={{ marginTop: '0' }}>
+                <div className="fg">
+                  <label>Debits / Withdrawals column</label>
+                  <select value={colMap.amountCol} onChange={e => setColMap(m => ({ ...m, amountCol: e.target.value }))}>
+                    <option value="">— Select —</option>
+                    {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </div>
+                <div className="fg">
+                  <label>Credits / Deposits column</label>
+                  <select value={colMap.creditCol} onChange={e => setColMap(m => ({ ...m, creditCol: e.target.value }))}>
+                    <option value="">— Select —</option>
+                    {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
             {livePreview && (
               <div className="rec-col-preview">
                 <div className="rec-col-preview-label">First transaction with these mappings:</div>
