@@ -251,6 +251,11 @@ tfoot td {
   transition: border-color .15s;
   width: 100%;
 }
+/* Prevent long option text from overflowing the select box */
+.fg select {
+  text-overflow: ellipsis;
+  padding-right: 1.8rem; /* room for the native dropdown arrow */
+}
 .fg input:focus, .fg select:focus, .fg textarea:focus {
   border-color: var(--blue);
   box-shadow: 0 0 0 3px rgba(26,58,107,.07);
