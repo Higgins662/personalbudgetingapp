@@ -177,8 +177,8 @@ export default function WizardCsvStep({ expenseItems, pendingBanks, onAddBank, o
                   }
                 }}
               >
-                <option value="1">1 — single amount column</option>
-                <option value="2">2 — separate debits &amp; credits columns</option>
+                <option value="1">1 column (debits + credits combined)</option>
+                <option value="2">2 columns (debits and credits separate)</option>
               </select>
             </div>
 
