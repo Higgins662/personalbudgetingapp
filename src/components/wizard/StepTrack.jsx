@@ -1,13 +1,9 @@
 /**
  * Full-width step indicator for the onboarding wizard.
  *
- * Each step segment is [dot+label] [line], where the line flexes to fill
- * the remaining space equally between steps — so the track always spans
- * the full width of the wizard header regardless of step count or label length.
- *
- * Props:
- *   step  — current active step number (1-based)
- *   steps — array of { label } objects
+ * Each wrap gets equal flex space. The connector line is absolutely
+ * positioned from the center of one dot to the center of the next,
+ * so all 6 dots distribute evenly regardless of label length.
  */
 export default function StepTrack({ step, steps }) {
   return (
@@ -15,6 +11,7 @@ export default function StepTrack({ step, steps }) {
       {steps.map((s, i) => {
         const n   = i + 1
         const cls = n < step ? 'done' : n === step ? 'active' : 'future'
+        const isLast = i === steps.length - 1
         return (
           <div key={s.label} className="wiz-step-wrap">
             <div className="wiz-step-node">
@@ -28,7 +25,8 @@ export default function StepTrack({ step, steps }) {
                 {s.label}
               </div>
             </div>
-            {i < steps.length - 1 && (
+            {/* Line runs from this dot's center to the next dot's center */}
+            {!isLast && (
               <div className={`wiz-step-line${n < step ? ' done' : ''}`} />
             )}
           </div>
