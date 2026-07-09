@@ -34,42 +34,44 @@
 /* ── Step track — spans full header width ── */
 .wiz-step-track {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   width: 100%;
+  padding: 0 4px; /* prevent last dot clipping edge */
 }
 
 /*
- * Each "step segment" is: [node] [line]
- * The last step has no line after it.
- * Nodes are fixed width; lines flex to fill remaining space equally.
+ * Every wrap gets equal flex — including the last one.
+ * The node is centered within each wrap; the line fills
+ * the gap between nodes. Last wrap has no line so its
+ * flex space just pads the right side naturally.
  */
 .wiz-step-wrap {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  flex: 1;               /* each segment takes equal space */
+  flex: 1;
   min-width: 0;
-}
-/* Last step has no trailing line — doesn't need to grow */
-.wiz-step-wrap:last-child {
-  flex: 0;
+  position: relative;
 }
 
+/* The line runs horizontally, centered on the dot row */
 .wiz-step-node {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: .35rem;
-  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .wiz-step-dot {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: .75rem;
+  font-size: .72rem;
   font-weight: 700;
   transition: all .25s;
   flex-shrink: 0;
@@ -79,23 +81,29 @@
 .wiz-step-dot.future { background: #2d3f52; color: #6b7f94; }
 
 .wiz-step-label {
-  font-size: .65rem;
+  font-size: .6rem;
   text-align: center;
   white-space: nowrap;
-  margin-top: .15rem;
+  margin-top: .1rem;
+  max-width: 56px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Connector line — grows to fill space between nodes */
+/* Connector line — absolutely positioned between dots */
 .wiz-step-line {
-  flex: 1;
+  position: absolute;
+  top: 14px; /* half of dot height (28px / 2) */
+  left: 50%;
+  width: 100%;
   height: 2px;
   background: #2d3f52;
-  margin: 0 6px;
-  /* shift up slightly to align with dot center, not label */
-  margin-bottom: .95rem;
+  z-index: 0;
   transition: background .25s;
 }
 .wiz-step-line.done { background: #1a6b3a; }
+
+/* Last wrap has no line, no need for special rule */
 
 /* ── Body ── */
 .wiz-body {
@@ -280,8 +288,8 @@
   .wiz-summary-grid  { grid-template-columns: 1fr; }
   .wiz-income-row    { grid-template-columns: 1fr; }
   .wiz-step-label    { display: none; }
-  .wiz-step-dot      { width: 24px; height: 24px; font-size: .68rem; }
-  .wiz-step-line     { margin-bottom: 0; }
+  .wiz-step-dot      { width: 22px; height: 22px; font-size: .65rem; }
+  .wiz-step-line     { top: 11px; }
   .wiz-bank-group-hdr, .wiz-match-row { grid-template-columns: 1fr; gap: .2rem; }
 }
 
