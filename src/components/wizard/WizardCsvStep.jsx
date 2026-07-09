@@ -54,8 +54,17 @@ export default function WizardCsvStep({ expenseItems, pendingBanks, onAddBank, o
   }
 
   function handleAddThisBank() {
-    if (!colMap.dateCol || !colMap.descCol || !colMap.amountCol) {
-      setError('Please select Date, Description, and Amount columns.')
+    const splitMode = colMap.amountSign === 'split'
+    if (!colMap.dateCol || !colMap.descCol) {
+      setError('Please select Date and Description columns.')
+      return
+    }
+    if (splitMode && (!colMap.amountCol || !colMap.creditCol)) {
+      setError('Please select both the Debits and Credits columns.')
+      return
+    }
+    if (!splitMode && !colMap.amountCol) {
+      setError('Please select the Amount column.')
       return
     }
     const raw = extractTransactions(csvRows, colMap, null) // bank_account_id filled in after save
@@ -157,32 +166,51 @@ export default function WizardCsvStep({ expenseItems, pendingBanks, onAddBank, o
               </select>
             </div>
             <div className="fg">
-              <label>Amount column</label>
-              <select value={colMap.amountCol} onChange={e => setColMap(m => ({ ...m, amountCol: e.target.value }))}>
-                <option value="">— Select —</option>
-                {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+              <label>How many amount columns?</label>
+              <select
+                value={colMap.amountSign === 'split' ? '2' : '1'}
+                onChange={e => {
+                  if (e.target.value === '2') {
+                    setColMap(m => ({ ...m, amountSign: 'split', amountCol: '', creditCol: '' }))
+                  } else {
+                    setColMap(m => ({ ...m, amountSign: 'negative', creditCol: '' }))
+                  }
+                }}
+              >
+                <option value="1">1 — single amount column</option>
+                <option value="2">2 — separate debits &amp; credits columns</option>
               </select>
             </div>
-            <div className="fg">
-              <label>Debits are…</label>
-              <select value={colMap.amountSign} onChange={e => {
-                const sign = e.target.value
-                setColMap(m => ({ ...m, amountSign: sign, creditCol: sign !== 'split' ? '' : m.creditCol }))
-              }}>
-                <option value="negative">Negative (−$50)</option>
-                <option value="positive">Positive ($50)</option>
-                <option value="split">Separate debit + credit columns</option>
-              </select>
-            </div>
+
+            {/* Single amount column — show debits-are selector */}
+            {colMap.amountSign !== 'split' && (
+              <div className="fg">
+                <label>Debit amounts are…</label>
+                <select value={colMap.amountSign} onChange={e => setColMap(m => ({ ...m, amountSign: e.target.value }))}>
+                  <option value="negative">Negative (−$50)</option>
+                  <option value="positive">Positive ($50)</option>
+                </select>
+              </div>
+            )}
           </div>
 
+          {/* Two-column mode — separate debit and credit selectors */}
           {colMap.amountSign === 'split' && (
-            <div className="fg">
-              <label>Deposits / Credits column</label>
-              <select value={colMap.creditCol} onChange={e => setColMap(m => ({ ...m, creditCol: e.target.value }))}>
-                <option value="">— Select —</option>
-                {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
-              </select>
+            <div className="fgrid" style={{ marginTop: '0' }}>
+              <div className="fg">
+                <label>Debits / Withdrawals column</label>
+                <select value={colMap.amountCol} onChange={e => setColMap(m => ({ ...m, amountCol: e.target.value }))}>
+                  <option value="">— Select —</option>
+                  {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                </select>
+              </div>
+              <div className="fg">
+                <label>Credits / Deposits column</label>
+                <select value={colMap.creditCol} onChange={e => setColMap(m => ({ ...m, creditCol: e.target.value }))}>
+                  <option value="">— Select —</option>
+                  {csvHeaders.map(h => <option key={h} value={h}>{h}</option>)}
+                </select>
+              </div>
             </div>
           )}
           <div className="btn-row" style={{ justifyContent: 'space-between' }}>
