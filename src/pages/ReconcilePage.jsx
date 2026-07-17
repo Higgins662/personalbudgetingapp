@@ -193,6 +193,18 @@ export default function ReconcilePage({ budget, transactions: txHook, periods, o
     const { error } = await insertTransactions([...normalToInsert, ...transfersToInsert, ...excludedToInsert])
     setSaving(false)
     if (error) { setError(error.message); return }
+
+    // Contribute every matched transaction to the global payee pattern pool.
+    // Fire-and-forget — don't block the UI on these.
+    for (const tx of normalToInsert) {
+      if (!tx.matched_expense_id) continue
+      const expenseItem = allExpenses.find(e => e.id === tx.matched_expense_id)
+      if (!expenseItem) continue
+      const cat = categories.find(c => c.id === expenseItem.category_id)
+      if (cat && !cat.is_system) {
+        contribute(tx.description, cat.name)
+      }
+    }
     const matched       = normalToInsert.filter(t => t.matched_expense_id).length
     const unmatched     = normalToInsert.filter(t => !t.matched_expense_id).length
     const unmatchedTotal = normalToInsert.filter(t => !t.matched_expense_id && t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0)
