@@ -106,10 +106,15 @@ export default function Onboarding() {
 
     if (step === 5) {
       setLoading(true)
-      const err = await handleCommit()
-      setLoading(false)
-      if (err) { setError(err.message); return }
-      setStep(6)
+      try {
+        const err = await handleCommit()
+        setLoading(false)
+        if (err) { setError(err.message ?? String(err)); return }
+        setStep(6)
+      } catch (e) {
+        setLoading(false)
+        setError(e.message ?? 'Something went wrong saving your budget. Please try again.')
+      }
       return
     }
 
