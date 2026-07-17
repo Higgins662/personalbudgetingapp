@@ -118,9 +118,10 @@ export async function seedFromTransactions(userId, {
   }
 
   // 2. Insert income items
-  const { error: incErr } = await supabase
+  const { data: incData, error: incErr } = await supabase
     .from('income_items')
     .insert(incomeRows.map((r, i) => ({ ...r, user_id: userId, sort_order: i, enabled: true })))
+    .select('id, label')
   if (incErr) return { error: incErr }
 
   // 3. Insert expense items — resolve any temp category ids to real ids
