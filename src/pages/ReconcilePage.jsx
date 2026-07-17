@@ -359,8 +359,8 @@ export default function ReconcilePage({ budget, transactions: txHook, periods, o
                 <div className="fg">
                   <label>Debit amounts are…</label>
                   <select value={colMap.amountSign} onChange={e => setColMap(m => ({ ...m, amountSign: e.target.value }))}>
-                    <option value="negative">Negative (−$50)</option>
-                    <option value="positive">Positive ($50)</option>
+                    <option value="negative">Negative  −50 or (50)</option>
+                    <option value="positive">Positive  50</option>
                   </select>
                 </div>
               )}
