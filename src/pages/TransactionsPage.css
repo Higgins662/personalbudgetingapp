@@ -1,0 +1,113 @@
+/* ── Filters bar ── */
+.tx-filters {
+  display: flex;
+  gap: .5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  align-items: center;
+}
+
+.tx-search {
+  flex: 1;
+  min-width: 160px;
+  padding: .5rem .75rem;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  font-family: 'Outfit', sans-serif;
+  font-size: .875rem;
+  background: var(--card);
+  color: var(--ink);
+  outline: none;
+  transition: border-color .15s;
+}
+.tx-search:focus { border-color: var(--blue); }
+
+.tx-filters select {
+  padding: .5rem .65rem;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  font-family: 'Outfit', sans-serif;
+  font-size: .82rem;
+  background: var(--card);
+  color: var(--ink);
+  outline: none;
+  cursor: pointer;
+  min-height: 38px;
+}
+.tx-filters select:focus { border-color: var(--blue); }
+
+/* ── Table ── */
+.tx-table { width: 100%; }
+
+.tx-date { font-size: .8rem; color: var(--ink3); white-space: nowrap; }
+.tx-desc { font-size: .875rem; max-width: 240px; }
+.tx-acct { font-size: .78rem; color: var(--ink3); white-space: nowrap; }
+
+.tx-cat {
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+  min-width: 160px;
+}
+.tx-cat-name {
+  font-size: .7rem;
+  font-weight: 600;
+}
+
+/* Row states */
+.tx-row-applied  { opacity: .65; }
+.tx-row-ignored  { opacity: .4; }
+
+/* Status badges */
+.tx-status-badge {
+  display: inline-block;
+  font-size: .7rem;
+  font-weight: 600;
+  padding: .15rem .5rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.tx-status-badge.applied   { background: var(--card2); color: var(--ink3); border: 1px solid var(--border); }
+.tx-status-badge.pending   { background: #fff8e8; color: var(--gold); border: 1px solid #e8d8a8; }
+.tx-status-badge.unmatched { background: #fff0f0; color: var(--red); border: 1px solid #f5c0c0; }
+.tx-status-badge.ignored   { background: var(--card2); color: var(--ink3); border: 1px solid var(--border); font-style: italic; }
+
+/* ── Payee summary section ── */
+.tx-payee-section {
+  margin-top: 2rem;
+  border-top: 1px solid var(--border);
+  padding-top: 1rem;
+}
+
+.tx-payee-toggle {
+  background: none;
+  border: none;
+  font-family: 'Outfit', sans-serif;
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--ink3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .3rem 0;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.tx-payee-toggle:hover { color: var(--ink); }
+
+.tx-payee-count {
+  background: var(--border);
+  border-radius: 999px;
+  padding: .1rem .45rem;
+  font-size: .7rem;
+}
+
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  .tx-filters { gap: .4rem; }
+  .tx-search  { min-width: 100%; }
+  .tx-acct    { display: none; }
+  .tx-desc    { max-width: 140px; font-size: .8rem; }
+  .tx-cat     { min-width: 120px; }
+}
