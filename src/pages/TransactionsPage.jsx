@@ -20,7 +20,10 @@ export default function TransactionsPage({ budget, transactions: txHook, periods
   const { transactions, bankAccounts, reload: reloadTx } = txHook
 
   const allExpenses    = [...(monthly ?? []), ...(annual ?? [])]
-  const budgetCats     = (categories ?? []).filter(c => !c.is_system)
+  // Deduplicate by name in case categories were seeded more than once
+  const budgetCats = (categories ?? [])
+    .filter(c => !c.is_system)
+    .filter((c, i, arr) => arr.findIndex(x => x.name === c.name) === i)
 
   // ── Filters ───────────────────────────────────────────────────────────────
   const [filterMonth,  setFilterMonth]  = useState('')
