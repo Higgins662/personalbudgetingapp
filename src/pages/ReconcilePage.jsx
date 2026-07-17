@@ -11,6 +11,7 @@ import { tagTransfers } from '../lib/transferDetection'
 import GroupedExpenseSelect from '../components/ui/GroupedExpenseSelect'
 import TransferPanel from '../components/ui/TransferPanel'
 import ClearMonthModal from '../components/ui/ClearMonthModal'
+import PendingReviewPanel from '../components/ui/PendingReviewPanel'
 import { formatMonthLabel } from '../hooks/usePeriods'
 import './ReconcilePage.css'
 
@@ -249,13 +250,23 @@ export default function ReconcilePage({ budget, transactions: txHook, periods, o
         <span className="sec-hint">Import bank statements</span>
       </div>
 
-      {unappliedCount > 0 && stage === 'bank' && !applyResult && (
-        <div className="alert alert-info" style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '.5rem' }}>
-          <span><strong>{unappliedCount}</strong> matched transaction{unappliedCount === 1 ? '' : 's'} ready to add to your budget.</span>
-          <button className="btn btn-p" style={{ fontSize: '.82rem' }} onClick={handleApplyToBudget} disabled={applying}>
-            {applying ? <><span className="spinner" style={{ width: 13, height: 13 }} /> Updating…</> : '✓ Update my budget totals'}
-          </button>
-        </div>
+      {stage === 'bank' && !applyResult && (
+        <PendingReviewPanel
+          transactions={transactions}
+          allExpenses={allExpenses}
+          categories={categories}
+          bankAccounts={bankAccounts}
+          applying={applying}
+          onApply={handleApplyToBudget}
+          onReassign={async (txId, itemId) => {
+            const { error } = await supabase.rpc('reassign_transaction', {
+              p_user_id: user.id,
+              p_tx_id: txId,
+              p_new_expense_item_id: itemId || null,
+            })
+            if (!error) { reloadTx(); if (periods) periods.reload() }
+          }}
+        />
       )}
 
       <div className="card rec-wizard">
