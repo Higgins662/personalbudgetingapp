@@ -208,6 +208,7 @@ export default function BudgetTable({
               bankAccounts={bankAccounts}
               showCategory={showCategory}
               showPaymentMethod={showPaymentMethod}
+              showFrequency={showFrequency}
               paymentMethodLabel={paymentMethodLabel}
               onUpdate={onUpdate}
               onDelete={onDelete}
@@ -309,7 +310,7 @@ function RowToggle({ enabled, onChange }) {
 }
 
 function MobileRow({ row, diff, enabled, categories, bankAccounts, showCategory,
-                     showPaymentMethod, paymentMethodLabel, onUpdate, onDelete }) {
+                     showPaymentMethod, showFrequency, paymentMethodLabel, onUpdate, onDelete }) {
   const [expanded, setExpanded] = useState(false)
   const cat  = categories.find(c => c.id === row.category_id)
   const bank = bankAccounts.find(b => b.id === row.bank_account_id)
@@ -351,6 +352,17 @@ function MobileRow({ row, diff, enabled, categories, bankAccounts, showCategory,
             <div className="mob-detail-row">
               <span>{paymentMethodLabel}</span>
               <PaymentMethodBadge bankAccountId={row.bank_account_id} bankAccounts={bankAccounts} onSelect={id => onUpdate(row.id, 'bank_account_id', id)} />
+            </div>
+          )}
+          {showFrequency && (
+            <div className="mob-detail-row">
+              <span>Frequency</span>
+              <button
+                className={`freq-toggle-btn${row.frequency === 'annual' ? ' annual' : ''}`}
+                onClick={() => onUpdate(row.id, 'frequency', row.frequency === 'annual' ? 'monthly' : 'annual')}
+              >
+                {row.frequency === 'annual' ? '📅 Yearly' : '📆 Monthly'}
+              </button>
             </div>
           )}
           <div className="mob-detail-row">
