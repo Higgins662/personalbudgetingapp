@@ -64,6 +64,9 @@ export default function Onboarding() {
   // Step 4 — expense assignments
   const [assignments, setAssignments] = useState({})
 
+  // Step 4 — yearly payee keys (Set of payee keys flagged as annual)
+  const [yearlyKeys, setYearlyKeys] = useState(new Set())
+
   // Step 5 — budget overrides + slider
   const [budgetOverrides, setBudgetOverrides] = useState({})
   const [savingsPct,      setSavingsPct]      = useState(0)
@@ -139,11 +142,18 @@ export default function Onboarding() {
       incomeRows.push({ label: 'Income', budgeted: 0, actual: 0, note: '', sort_order: 0 })
     }
 
+    // Determine frequency for each category — yearly if ANY payee in that
+    // category was flagged as yearly by the user
+    const yearlyCatIds = new Set(
+      [...yearlyKeys].map(key => assignments[key]).filter(Boolean)
+    )
+
     const expenseRows = categoryTotals.map((cat, i) => ({
       label:       cat.categoryName,
       category_id: cat.categoryId,
       budgeted:    budgets[cat.categoryId] ?? 0,
       actual:      Math.floor(cat.total / months),
+      frequency:   yearlyCatIds.has(cat.categoryId) ? 'annual' : 'monthly',
       note:        '',
       sort_order:  i,
     }))
@@ -169,6 +179,14 @@ export default function Onboarding() {
 
   function handleFinish() {
     navigate('/dashboard', { replace: true })
+  }
+
+  function handleToggleYearly(key) {
+    setYearlyKeys(prev => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
   }
 
   function handleAddCategory(newCat) {
@@ -292,7 +310,9 @@ export default function Onboarding() {
                 transactions={debitTx}
                 categories={categories}
                 assignments={assignments}
+                yearlyKeys={yearlyKeys}
                 onChange={setAssignments}
+                onSetYearly={handleToggleYearly}
                 onAddCategory={handleAddCategory}
               />
             </div>
