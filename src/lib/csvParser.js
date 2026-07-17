@@ -72,11 +72,8 @@ export function extractTransactions(rows, colMap, bankAccountId) {
       // Split columns: debit column = expense (stored negative),
       // credit column = income/deposit (stored positive).
       // A row will typically have a value in one column and empty in the other.
-      const rawDebit  = row[amountCol]?.trim().replace(/[$,]/g, '')
-      const rawCredit = row[creditCol]?.trim().replace(/[$,]/g, '')
-
-      const debit  = rawDebit  ? parseFloat(rawDebit)  : NaN
-      const credit = rawCredit ? parseFloat(rawCredit) : NaN
+      const debit  = parseAmount(row[amountCol])
+      const credit = parseAmount(row[creditCol])
 
       if (!isNaN(debit) && debit !== 0) {
         amount = -Math.abs(debit)   // debits are always stored negative
@@ -87,10 +84,11 @@ export function extractTransactions(rows, colMap, bankAccountId) {
       }
     } else {
       // Single amount column
-      const rawAmount = row[amountCol]?.trim().replace(/[$,]/g, '')
-      if (!rawAmount) continue
-      const parsed = parseFloat(rawAmount)
+      const parsed = parseAmount(row[amountCol])
       if (isNaN(parsed)) continue
+      // Parentheses already handled as negative in parseAmount.
+      // For 'positive' sign mode, invert so debits become negative.
+      // For 'negative' mode, use value as-is (already signed correctly).
       amount = amountSign === 'positive' ? -Math.abs(parsed) : parsed
     }
 
@@ -137,6 +135,31 @@ export function guessColMap(headers) {
     creditCol: isSplit ? find('credit', 'deposit') : '',
     amountSign: isSplit ? 'split' : 'negative',
   }
+}
+
+/**
+ * Parse an amount string into a float, handling all common bank formats:
+ *   -84.32       standard negative
+ *   84.32        positive (sign determined by caller)
+ *   (84.32)      accounting notation for negative (Truist, some others)
+ *   ($84.32)     accounting with dollar sign
+ *   $84.32       dollar sign prefix
+ *   1,234.56     comma thousands separators
+ * Always returns a number (may be NaN if unparseable).
+ */
+function parseAmount(str) {
+  if (!str) return NaN
+  const s = str.trim()
+  // Detect accounting parentheses — treat as negative
+  const isParens = s.startsWith('(') && s.endsWith(')')
+  // Strip everything except digits, decimal point, and leading minus
+  const cleaned = s
+    .replace(/[$,]/g, '')         // remove $ and commas
+    .replace(/[()]/g, '')         // remove parentheses
+    .trim()
+  const value = parseFloat(cleaned)
+  if (isNaN(value)) return NaN
+  return isParens ? -Math.abs(value) : value
 }
 
 /** Try common date formats */
