@@ -17,7 +17,7 @@ const CONFIDENCE_THRESHOLD = 0.6
  *   onChange        — (assignments) => void
  *   onAddCategory   — (newCategory) => void — parent appends to category list
  */
-export default function WizardExpenseStep({ transactions, categories, assignments, onChange, onAddCategory }) {
+export default function WizardExpenseStep({ transactions, categories, assignments, yearlyKeys, onChange, onSetYearly, onAddCategory }) {
   const [groups,    setGroups]    = useState([])
   const [showNew,   setShowNew]   = useState(false)
   const [newCatName, setNewCatName] = useState('')
@@ -29,7 +29,7 @@ export default function WizardExpenseStep({ transactions, categories, assignment
     // Pre-assign high-confidence fuzzy matches
     const withMatches = debits.map(g => {
       const match = findBestMatch(g.description, categories.map(c => ({ id: c.id, label: c.name })), CONFIDENCE_THRESHOLD)
-      return { ...g, autoMatch: match ?? null }
+      return { ...g, autoMatch: match ?? null, suggestYearly: g.count === 1 }
     })
 
     setGroups(withMatches)
@@ -91,7 +91,10 @@ export default function WizardExpenseStep({ transactions, categories, assignment
               group={g}
               categories={categories}
               assigned={assignments[g.key]}
+              yearly={yearlyKeys?.has(g.key)}
+              suggestYearly={g.suggestYearly}
               onAssign={id => assign(g.key, id)}
+              onToggleYearly={() => onSetYearly(g.key)}
               defaultExpanded
             />
           ))}
@@ -115,7 +118,10 @@ export default function WizardExpenseStep({ transactions, categories, assignment
               group={g}
               categories={categories}
               assigned={assignments[g.key]}
+              yearly={yearlyKeys?.has(g.key)}
+              suggestYearly={g.suggestYearly}
               onAssign={id => assign(g.key, id)}
+              onToggleYearly={() => onSetYearly(g.key)}
               defaultExpanded={false}
             />
           ))}
@@ -142,7 +148,7 @@ export default function WizardExpenseStep({ transactions, categories, assignment
   )
 }
 
-function PayeeGroup({ group, categories, assigned, onAssign, defaultExpanded }) {
+function PayeeGroup({ group, categories, assigned, yearly, suggestYearly, onAssign, onToggleYearly, defaultExpanded }) {
   const [expanded, setExpanded] = useState(defaultExpanded)
   const assignedCat = categories.find(c => c.id === assigned)
 
@@ -156,6 +162,7 @@ function PayeeGroup({ group, categories, assigned, onAssign, defaultExpanded }) 
           </span>
         </div>
         <div className="wiz-payee-group-right">
+          {yearly && <span className="wiz-yearly-badge-sm">📅 Yearly</span>}
           {assignedCat && (
             <span className="badge" style={{ background: assignedCat.color + '22', color: assignedCat.color, borderColor: assignedCat.color + '55', fontSize: '.72rem' }}>
               {assignedCat.name}
@@ -166,6 +173,20 @@ function PayeeGroup({ group, categories, assigned, onAssign, defaultExpanded }) 
       </div>
 
       {expanded && (
+        <div className="wiz-payee-yearly-row">
+          <label className="wiz-yearly-toggle" onClick={e => e.stopPropagation()}>
+            <input
+              type="checkbox"
+              checked={!!yearly}
+              onChange={() => onToggleYearly()}
+            />
+            <span className="wiz-yearly-check-box" />
+            <span className="wiz-yearly-label">This is a yearly expense</span>
+          </label>
+          {suggestYearly && !yearly && (
+            <span className="wiz-yearly-hint">appears only once — might be annual?</span>
+          )}
+        </div>
         <div className="wiz-cat-palette fadein">
           {categories.map(cat => (
             <button
