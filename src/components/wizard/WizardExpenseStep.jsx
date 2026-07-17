@@ -173,6 +173,7 @@ function PayeeGroup({ group, categories, assigned, yearly, suggestYearly, onAssi
       </div>
 
       {expanded && (
+        <>
         <div className="wiz-payee-yearly-row">
           <label className="wiz-yearly-toggle" onClick={e => e.stopPropagation()}>
             <input
@@ -211,6 +212,7 @@ function PayeeGroup({ group, categories, assigned, yearly, suggestYearly, onAssi
             Skip
           </button>
         </div>
+        </>
       )}
     </div>
   )
