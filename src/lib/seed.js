@@ -180,6 +180,23 @@ export async function seedFromTransactions(userId, {
     if (ruleRows.length) {
       await supabase.from('payee_rules').insert(ruleRows)
     }
+
+    // Contribute every assigned payee pattern to the global pool.
+    // Fetch categories to get names, then fire-and-forget per pattern.
+    const { data: cats } = await supabase
+      .from('categories')
+      .select('id, name, is_system')
+      .eq('user_id', userId)
+    const catNameMap = Object.fromEntries((cats ?? []).map(c => [c.id, c]))
+
+    for (const [pattern, catId] of Object.entries(payeeRuleMap)) {
+      const cat = catNameMap[resolvecat(catId)]
+      if (!cat || cat.is_system) continue
+      supabase.rpc('contribute_payee_pattern', {
+        p_pattern:       pattern,
+        p_category_name: cat.name,
+      }).catch(() => {})
+    }
   }
 
   // 6. Create the current monthly period and write period_items with real values
