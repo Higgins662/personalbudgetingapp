@@ -29,6 +29,8 @@ export const DEFAULT_CATEGORIES = [
   { name: 'Vehicle Payments',    color: '#2a5a8a', description: 'Car loan, lease payments',                enabled: true,  is_system: false, sort_order: 19 },
   { name: 'Vehicle Maintenance',       color: '#5a7a2a', description: 'Repairs, tires, oil changes, car wash',   enabled: true,  is_system: false, sort_order: 20 },
   { name: 'Vehicle Taxes/Registration', color: '#3a6a9a', description: 'Registration fees, property tax, tags', enabled: true,  is_system: false, sort_order: 21 },
+  { name: 'Activities',                  color: '#9a3a7a', description: 'Sports, clubs, hobbies, recreation',     enabled: true,  is_system: false, sort_order: 22 },
+  { name: 'School Expenses',             color: '#3a7a6a', description: 'Tuition, supplies, fees, uniforms',      enabled: true,  is_system: false, sort_order: 23 },
   // System category — excluded from all budget calculations
   { name: 'Transfers & Payments',     color: '#888888', description: 'Credit card payments, loan payments, inter-account transfers. Excluded from budget totals.', enabled: false, is_system: true, sort_order: 999 },
 ]
