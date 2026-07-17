@@ -509,3 +509,89 @@ main {
   gap: .75rem;
   margin-top: 1rem;
 }
+
+/* ── Frequency toggle button (Monthly ↔ Yearly in BudgetTable) ── */
+.freq-toggle-btn {
+  font-family: 'Outfit', sans-serif;
+  font-size: .75rem;
+  font-weight: 600;
+  padding: .25rem .6rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border2);
+  background: var(--card2);
+  color: var(--ink3);
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.freq-toggle-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-lt); }
+.freq-toggle-btn.annual { background: #f0f4ff; color: #3a5ab8; border-color: #b0c0e8; }
+.freq-toggle-btn.annual:hover { background: #dde6ff; }
+
+/* ── Wizard yearly toggle styles ── */
+.wiz-payee-yearly-row {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .55rem .9rem;
+  background: #f8f6f0;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.wiz-yearly-toggle {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  cursor: pointer;
+  font-size: .82rem;
+  font-weight: 500;
+  color: var(--ink2);
+  user-select: none;
+}
+.wiz-yearly-toggle input { display: none; }
+.wiz-yearly-check-box {
+  width: 16px; height: 16px;
+  border: 2px solid var(--border2);
+  border-radius: 3px;
+  background: var(--card);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: all .15s;
+}
+.wiz-yearly-toggle input:checked + .wiz-yearly-check-box {
+  background: #3a5ab8;
+  border-color: #3a5ab8;
+}
+.wiz-yearly-toggle input:checked + .wiz-yearly-check-box::after {
+  content: '✓'; color: #fff; font-size: .65rem; font-weight: 700;
+}
+
+.wiz-yearly-label { white-space: nowrap; }
+
+.wiz-yearly-hint {
+  font-size: .73rem;
+  color: var(--gold);
+  font-style: italic;
+}
+
+.wiz-yearly-badge {
+  font-size: .72rem;
+  font-weight: 600;
+  color: #3a5ab8;
+  background: #f0f4ff;
+  border: 1px solid #b0c0e8;
+  border-radius: 999px;
+  padding: .1rem .45rem;
+}
+
+.wiz-yearly-badge-sm {
+  font-size: .68rem;
+  font-weight: 600;
+  color: #3a5ab8;
+  background: #f0f4ff;
+  border: 1px solid #b0c0e8;
+  border-radius: 999px;
+  padding: .08rem .4rem;
+  white-space: nowrap;
+}
