@@ -67,7 +67,15 @@ export function useBudget(periods) {
     const err = catRes.error || incRes.error || expRes.error
     if (err) { setError(err.message); setLoading(false); return }
 
-    setCategories(catRes.data ?? [])
+    // Deduplicate categories by name — guards against double-seeding
+    const rawCats = catRes.data ?? []
+    const seen = new Set()
+    const dedupedCats = rawCats.filter(c => {
+      if (seen.has(c.name)) return false
+      seen.add(c.name)
+      return true
+    })
+    setCategories(dedupedCats)
     setIncome(incRes.data ?? [])
     setMonthly((expRes.data ?? []).filter(e => e.frequency === 'monthly'))
     setAnnual ((expRes.data ?? []).filter(e => e.frequency === 'annual'))
