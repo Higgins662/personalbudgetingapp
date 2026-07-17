@@ -27,7 +27,8 @@ export const DEFAULT_CATEGORIES = [
   { name: 'Clothing',            color: '#c06090', description: 'Clothing, shoes, accessories',         enabled: true,  is_system: false, sort_order: 17 },
   { name: 'Home Furnishings',    color: '#8b6914', description: 'Furniture, decor, appliances',            enabled: true,  is_system: false, sort_order: 18 },
   { name: 'Vehicle Payments',    color: '#2a5a8a', description: 'Car loan, lease payments',                enabled: true,  is_system: false, sort_order: 19 },
-  { name: 'Vehicle Maintenance', color: '#5a7a2a', description: 'Repairs, tires, oil changes, car wash',   enabled: true,  is_system: false, sort_order: 20 },
+  { name: 'Vehicle Maintenance',       color: '#5a7a2a', description: 'Repairs, tires, oil changes, car wash',   enabled: true,  is_system: false, sort_order: 20 },
+  { name: 'Vehicle Taxes/Registration', color: '#3a6a9a', description: 'Registration fees, property tax, tags', enabled: true,  is_system: false, sort_order: 21 },
   // System category — excluded from all budget calculations
   { name: 'Transfers & Payments',     color: '#888888', description: 'Credit card payments, loan payments, inter-account transfers. Excluded from budget totals.', enabled: false, is_system: true, sort_order: 999 },
 ]
