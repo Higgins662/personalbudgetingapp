@@ -42,6 +42,7 @@ export default function AnnualPage({ budget, transactions, periods }) {
           onAdd={addAnnual}
           onDelete={deleteAnnual}
           showPaymentMethod
+          showFrequency
           addLabel="+ Add annual expense"
           emptyMessage="No annual expenses yet."
         />
