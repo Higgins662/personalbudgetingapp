@@ -44,7 +44,11 @@ export async function seedFallbackBudget(userId, catMap) {
   if (expErr) return { error: expErr }
 
   const { error: goalErr } = await seedSampleGoals(userId)
-  return { error: goalErr }
+  if (goalErr) return { error: goalErr }
+
+  // Create the current monthly period and seed period_items for all items
+  const { error: periodErr } = await seedCurrentPeriod(userId)
+  return { error: periodErr ?? null }
 }
 
 /**
@@ -178,8 +182,87 @@ export async function seedFromTransactions(userId, {
     }
   }
 
-  // 6. Seed sample goals
+  // 6. Create the current monthly period and write period_items with real values
+  const { error: periodErr } = await seedCurrentPeriodWithValues(userId, incData, expData, resolvedExpenseRows, incomeRows)
+  if (periodErr) return { error: periodErr }
+
+  // 7. Seed sample goals
   await seedSampleGoals(userId)
+
+  return { error: null }
+}
+
+/**
+ * Create the current monthly budget period and seed zero period_items.
+ * Used by the fallback (no CSV) path.
+ */
+async function seedCurrentPeriod(userId) {
+  const monthStart = new Date()
+  monthStart.setDate(1)
+  const periodStart = monthStart.toISOString().split('T')[0]
+
+  const { data: periodId, error: periodErr } = await supabase.rpc('get_or_create_period', {
+    p_user_id:     userId,
+    p_period_type: 'monthly',
+    p_period_start: periodStart,
+  })
+  if (periodErr) return { error: periodErr }
+  return { error: null }
+}
+
+/**
+ * Create the current monthly budget period and seed period_items with
+ * the real budgeted/actual values from the CSV-driven wizard.
+ * Used by the seedFromTransactions path.
+ */
+async function seedCurrentPeriodWithValues(userId, incData, expData, expenseRows, incomeRows) {
+  const monthStart = new Date()
+  monthStart.setDate(1)
+  const periodStart = monthStart.toISOString().split('T')[0]
+
+  // Create (or get) the current monthly period
+  const { data: periodId, error: periodErr } = await supabase.rpc('get_or_create_period', {
+    p_user_id:      userId,
+    p_period_type:  'monthly',
+    p_period_start: periodStart,
+  })
+  if (periodErr) return { error: periodErr }
+
+  // Build period_items rows — one per income item
+  const periodItemRows = []
+
+  for (const item of incData) {
+    const sourceRow = incomeRows.find(r => r.label === item.label)
+    periodItemRows.push({
+      period_id:  periodId,
+      user_id:    userId,
+      item_id:    item.id,
+      item_type:  'income',
+      budgeted:   sourceRow?.budgeted ?? 0,
+      actual:     sourceRow?.actual   ?? 0,
+    })
+  }
+
+  // One per expense item
+  for (const item of expData) {
+    const sourceRow = expenseRows.find(r => r.category_id === item.category_id)
+    periodItemRows.push({
+      period_id:  periodId,
+      user_id:    userId,
+      item_id:    item.id,
+      item_type:  'expense',
+      budgeted:   sourceRow?.budgeted ?? 0,
+      actual:     sourceRow?.actual   ?? 0,
+    })
+  }
+
+  if (periodItemRows.length) {
+    const BATCH = 500
+    for (let i = 0; i < periodItemRows.length; i += BATCH) {
+      const { error } = await supabase.from('period_items').insert(periodItemRows.slice(i, i + BATCH))
+      if (error) return { error }
+    }
+  }
 
   return { error: null }
 }
