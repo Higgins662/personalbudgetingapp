@@ -70,9 +70,9 @@ export function usePeriods() {
       supabase.rpc('get_or_create_period', { p_user_id: user.id, p_period_type: 'yearly',  p_period_start: thisYear }),
     ])
 
-    if (monthRes.error) { setError(monthRes.error.message); setLoading(false); return }
-    // Yearly period only matters if the user has annual items — a benign
-    // error here (e.g. no annual items yet) shouldn't block monthly view.
+    // Log errors from period creation but don't block — periods may already exist
+    if (monthRes.error) console.warn('get_or_create_period (monthly):', monthRes.error.message)
+    if (yearRes.error)  console.warn('get_or_create_period (yearly):', yearRes.error.message)
 
     const { data: allPeriods } = await supabase
       .from('budget_periods')
