@@ -35,6 +35,7 @@ export default function MonthlyPage({ budget, transactions, periods }) {
           onUpdate={updateMonthly}
           onAdd={addMonthly}
           onDelete={deleteMonthly}
+          showLabel={false}
           showPaymentMethod
           showFrequency
           showNote={false}
