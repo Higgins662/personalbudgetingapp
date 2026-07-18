@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo } from 'react'
-import { parseCSV, getCSVHeaders, extractTransactions } from '../lib/csvParser'
+import { parseCSV, getCSVHeaders, extractTransactions, guessColMap } from '../lib/csvParser'
 import { autoMatch } from '../lib/fuzzyMatch'
 import { fmt } from '../lib/format'
 import { supabase } from '../lib/supabase'
@@ -30,7 +30,7 @@ export default function ReconcilePage({ budget, transactions: txHook, periods, o
   const [creatingNew,  setCreatingNew]  = useState(bankAccounts.length === 0)
   const [csvHeaders,   setCsvHeaders]   = useState([])
   const [csvRows,      setCsvRows]      = useState([])
-  const [colMap,       setColMap]       = useState({ dateCol: '', descCol: '', amountCol: '', amountSign: 'negative' })
+  const [colMap,       setColMap]       = useState({ dateCol: '', descCol: '', amountCol: '', amountSign: 'negative', creditCol: '' })
   const [preview,      setPreview]      = useState([])
   const [transfers,    setTransfers]    = useState([])
   const [excludedTransfers, setExcludedTransfers] = useState(new Set())
@@ -112,10 +112,17 @@ export default function ReconcilePage({ budget, transactions: txHook, periods, o
       setCsvHeaders(headers); setCsvRows(rows)
       const acct = bankAccounts.find(b => b.id === selAcct)
       if (!creatingNew && acct?.col_date) {
-        setColMap({ dateCol: acct.col_date, descCol: acct.col_desc, amountCol: acct.col_amount, amountSign: acct.amount_sign ?? 'negative' })
+        // Restore remembered column mapping for this bank account
+        setColMap({
+          dateCol:    acct.col_date,
+          descCol:    acct.col_desc,
+          amountCol:  acct.col_amount,
+          amountSign: acct.amount_sign ?? 'negative',
+          creditCol:  acct.col_credit ?? '',
+        })
       } else {
-        const guess = k => headers.find(h => h.toLowerCase().includes(k)) ?? ''
-        setColMap({ dateCol: guess('date'), descCol: guess('desc') || guess('payee') || guess('memo'), amountCol: guess('amount') || guess('debit') || guess('withdrawal'), amountSign: 'negative' })
+        // Auto-detect columns from headers
+        setColMap(guessColMap(headers))
       }
       setStage('map'); setError('')
     }
