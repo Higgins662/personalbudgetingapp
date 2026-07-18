@@ -19,10 +19,15 @@ export default function GroupedExpenseSelect({
   onChange,
   placeholder = 'Assign to budget item…',
 }) {
-  // Group expense items by category_id, with an "Uncategorized" fallback
+  // Group expense items by category_id, with an "Uncategorized" fallback.
+  // Also build a name-based fallback map in case category_id points to a
+  // duplicate row that was removed by dedup (id mismatch but same name).
+  const catById   = Object.fromEntries((categories ?? []).map(c => [c.id,   c]))
+  const catByName = Object.fromEntries((categories ?? []).map(c => [c.name, c]))
+
   const groups = {}
   for (const exp of allExpenses) {
-    const cat = categories.find(c => c.id === exp.category_id)
+    const cat = catById[exp.category_id] ?? catByName[exp.category_name] ?? null
     const key = cat?.name ?? 'Uncategorized'
     if (!groups[key]) groups[key] = { color: cat?.color, items: [] }
     groups[key].items.push(exp)
