@@ -43,12 +43,6 @@ export default function GroupedExpenseSelect({
     return ai - bi
   })
 
-  // If every group has exactly one item and its label matches the group name,
-  // skip the optgroup wrapper — it just looks like a duplicated parent/child.
-  const useFlat = sortedGroups.every(([name, g]) =>
-    g.items.length === 1 && g.items[0].label === name
-  )
-
   return (
     <select
       className="cell-select grouped-expense-select"
@@ -56,28 +50,29 @@ export default function GroupedExpenseSelect({
       onChange={e => e.target.value && onChange(e.target.value)}
     >
       <option value="" disabled>{placeholder}</option>
-      {useFlat
-        ? sortedGroups.map(([groupName, group]) => {
-            const exp = group.items[0]
-            return (
+      {sortedGroups.map(([groupName, group]) => {
+        const sorted = group.items.sort((a, b) => a.label.localeCompare(b.label))
+        // Single item in group — render a flat option using the category name,
+        // no optgroup wrapper needed (avoids the parent/child duplicate look)
+        if (sorted.length === 1) {
+          const exp = sorted[0]
+          return (
+            <option key={exp.id} value={exp.id}>
+              {groupName}{exp.frequency === 'annual' ? ' (yearly)' : ''}
+            </option>
+          )
+        }
+        // Multiple items in same category — use optgroup to distinguish them
+        return (
+          <optgroup key={groupName} label={groupName}>
+            {sorted.map(exp => (
               <option key={exp.id} value={exp.id}>
-                {groupName}{exp.frequency === 'annual' ? ' (yearly)' : ''}
+                {exp.label}{exp.frequency === 'annual' ? ' (yearly)' : ''}
               </option>
-            )
-          })
-        : sortedGroups.map(([groupName, group]) => (
-            <optgroup key={groupName} label={groupName}>
-              {group.items
-                .sort((a, b) => a.label.localeCompare(b.label))
-                .map(exp => (
-                  <option key={exp.id} value={exp.id}>
-                    {exp.label}
-                    {exp.frequency === 'annual' ? ' (yearly)' : ''}
-                  </option>
-                ))}
-            </optgroup>
-          ))
-      }
+            ))}
+          </optgroup>
+        )
+      })}
     </select>
   )
 }
