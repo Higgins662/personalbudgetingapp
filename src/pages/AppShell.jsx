@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, Component } from 'react'
 import Nav from '../components/layout/Nav'
 import Dashboard from './Dashboard'
 import IncomePage from './IncomePage'
@@ -13,6 +13,25 @@ import { useBudget } from '../hooks/useBudget'
 import { useTransactions } from '../hooks/useTransactions'
 import { useGoals } from '../hooks/useGoals'
 import { usePeriods } from '../hooks/usePeriods'
+
+class TabErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { error: null } }
+  static getDerivedStateFromError(e) { return { error: e } }
+  componentDidCatch(e, info) { console.error('Tab render error:', e, info) }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: '2rem', color: 'var(--red)' }}>
+          <strong>Something went wrong on this page.</strong>
+          <pre style={{ marginTop: '1rem', fontSize: '.8rem', whiteSpace: 'pre-wrap' }}>
+            {this.state.error.message}
+          </pre>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 export default function AppShell() {
   const [activeTab, setActiveTab] = useState('dashboard')
@@ -39,7 +58,7 @@ export default function AppShell() {
   return (
     <>
       <Nav activeTab={activeTab} onTabChange={setActiveTab} />
-      <main>{renderTab()}</main>
+      <main><TabErrorBoundary key={activeTab}>{renderTab()}</TabErrorBoundary></main>
     </>
   )
 }
