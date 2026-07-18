@@ -76,9 +76,23 @@ export function useBudget(periods) {
       return true
     })
     setCategories(dedupedCats)
+
+    // Build a name→canonical-id map so expense items pointing at duplicate
+    // category rows (same name, different id) are remapped to the keeper id
+    const nameToCanonicalId = Object.fromEntries(dedupedCats.map(c => [c.name, c.id]))
+    const allCatsById = Object.fromEntries(rawCats.map(c => [c.id, c]))
+    function remapCategoryId(exp) {
+      if (!exp.category_id) return exp
+      if (nameToCanonicalId[allCatsById[exp.category_id]?.name]) {
+        return { ...exp, category_id: nameToCanonicalId[allCatsById[exp.category_id].name] }
+      }
+      return exp
+    }
+
+    const expenses = (expRes.data ?? []).map(remapCategoryId)
     setIncome(incRes.data ?? [])
-    setMonthly((expRes.data ?? []).filter(e => e.frequency === 'monthly'))
-    setAnnual ((expRes.data ?? []).filter(e => e.frequency === 'annual'))
+    setMonthly(expenses.filter(e => e.frequency === 'monthly'))
+    setAnnual (expenses.filter(e => e.frequency === 'annual'))
     setLoading(false)
   }, [user])
 
