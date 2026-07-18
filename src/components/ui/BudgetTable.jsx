@@ -14,6 +14,7 @@ export default function BudgetTable({
   onAdd,
   onDelete,
   showCategory = true,
+  showLabel = true,
   showPaymentMethod = false,
   showFrequency = false,
   paymentMethodLabel = 'Payment Method',
@@ -49,6 +50,7 @@ export default function BudgetTable({
   }
 
   const colCount = 4
+    + (showLabel ? 1 : 0)
     + (showCategory ? 1 : 0)
     + (showPaymentMethod ? 1 : 0)
     + (showNote ? 1 : 0)
@@ -62,7 +64,7 @@ export default function BudgetTable({
           <thead>
             <tr>
               <th style={{ width: 36 }} title="Enable / disable row" />
-              <th style={{ width: '28%' }}>Description</th>
+              {showLabel && <th style={{ width: '28%' }}>Description</th>}
               {showCategory && <th>Category</th>}
               {showPaymentMethod && <th>{paymentMethodLabel}</th>}
               <th className="r">Budgeted</th>
@@ -93,15 +95,17 @@ export default function BudgetTable({
                       onChange={v => onUpdate(row.id, 'enabled', v)}
                     />
                   </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', flexWrap: 'wrap' }}>
-                      <EditableCell
-                        value={row.label}
-                        onSave={v => onUpdate(row.id, 'label', v)}
-                      />
-                      {row.flagged && <FlagBadge variance={row.flag_variance} />}
-                    </div>
-                  </td>
+                  {showLabel && (
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', flexWrap: 'wrap' }}>
+                        <EditableCell
+                          value={row.label}
+                          onSave={v => onUpdate(row.id, 'label', v)}
+                        />
+                        {row.flagged && <FlagBadge variance={row.flag_variance} />}
+                      </div>
+                    </td>
+                  )}
                   {showCategory && (
                     <td>
                       <CategoryBadge
@@ -164,7 +168,7 @@ export default function BudgetTable({
           <tfoot>
             <tr>
               <td />
-              <td colSpan={showCategory ? 2 : 1}>
+              <td colSpan={(showLabel ? 1 : 0) + (showCategory ? 1 : 0) + 1}>
                 Total
                 {rows.some(r => r.enabled === false) && (
                   <span className="disabled-banner">
