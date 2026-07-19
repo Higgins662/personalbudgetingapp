@@ -171,21 +171,56 @@ export default function Onboarding() {
       incomeRows.push({ label: 'Income', budgeted: 0, actual: 0, note: '', sort_order: 0 })
     }
 
-    // Determine frequency for each category — yearly if ANY payee in that
-    // category was flagged as yearly by the user
+    // Yearly payees become individual expense_items (one per payee, not per category)
+    // so they show as named subscriptions on the Yearly tab
+    const yearlyExpenseRows = [...yearlyKeys].map((key, i) => {
+      const catId   = assignments[key]
+      const cat     = categories.find(c => c.id === catId)
+      // Get all transactions for this payee to get the real annual total
+      const groupTx = debitTx.filter(tx => normalizePattern(tx.description) === key)
+      const total   = groupTx.reduce((s, t) => s + Math.abs(t.amount), 0)
+      // Use the original description as the label (prettified)
+      const label   = groupTx[0]?.description ?? key
+      return {
+        label,
+        category_id: catId ?? null,
+        budgeted:    Math.round(total),  // full annual amount
+        actual:      Math.round(total),
+        frequency:   'annual',
+        note:        '',
+        sort_order:  1000 + i,           // after monthly items
+      }
+    }).filter(r => r.category_id)
+
+    // Monthly expenseRows: exclude any categories that are ONLY yearly
+    // (categories shared by monthly + yearly payees still appear monthly)
     const yearlyCatIds = new Set(
       [...yearlyKeys].map(key => assignments[key]).filter(Boolean)
     )
+    // A category is monthly-only if it has at least one non-yearly payee assigned to it
+    const monthlyCatIds = new Set(
+      Object.entries(assignments)
+        .filter(([key]) => !yearlyKeys.has(key))
+        .map(([, catId]) => catId)
+        .filter(Boolean)
+    )
 
-    const expenseRows = categoryTotals.map((cat, i) => ({
-      label:       cat.categoryName,
-      category_id: cat.categoryId,
-      budgeted:    budgets[cat.categoryId] ?? 0,
-      actual:      Math.floor(cat.total / months),
-      frequency:   yearlyCatIds.has(cat.categoryId) ? 'annual' : 'monthly',
-      note:        '',
-      sort_order:  i,
-    }))
+    const expenseRows = [
+      // Monthly: category-level rows, excluding purely-yearly categories
+      ...categoryTotals
+        .filter(cat => monthlyCatIds.has(cat.categoryId))
+        .map((cat, i) => ({
+          label:       cat.categoryName,
+          category_id: cat.categoryId,
+          budgeted:    budgets[cat.categoryId] ?? 0,
+          actual:      Math.floor(cat.total / months),
+          frequency:   'monthly',
+          note:        '',
+          sort_order:  i,
+        })),
+      // Yearly: individual payee rows
+      ...yearlyExpenseRows,
+    ]
 
     const payeeRuleMap = {}
     for (const [key, catId] of Object.entries(assignments)) {
