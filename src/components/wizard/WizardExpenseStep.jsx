@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { fmt } from '../../lib/format'
 import { groupByPayee } from '../../lib/transactionAnalysis'
-import { findBestMatch } from '../../lib/fuzzyMatch'
+import { findBestMatch, normalizePattern } from '../../lib/fuzzyMatch'
 import { randomCategoryColor } from '../../lib/transactionAnalysis'
 import './WizardSteps.css'
 
@@ -17,7 +17,7 @@ const CONFIDENCE_THRESHOLD = 0.6
  *   onChange        — (assignments) => void
  *   onAddCategory   — (newCategory) => void — parent appends to category list
  */
-export default function WizardExpenseStep({ transactions, categories, assignments, yearlyKeys, onChange, onSetYearly, onAddCategory }) {
+export default function WizardExpenseStep({ transactions, categories, assignments, yearlyKeys, globalPatterns = [], onChange, onSetYearly, onAddCategory }) {
   const [groups,    setGroups]    = useState([])
   const [showNew,   setShowNew]   = useState(false)
   const [newCatName, setNewCatName] = useState('')
