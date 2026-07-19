@@ -112,3 +112,13 @@
   .pending-row        { flex-direction: column; align-items: flex-start; gap: .4rem; }
   .pending-row-right  { width: 100%; justify-content: space-between; }
 }
+
+.pending-panel-clean {
+  padding: .75rem 1.1rem;
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  margin-bottom: 1.5rem;
+  color: var(--ink3);
+  font-size: .875rem;
+}
