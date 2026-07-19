@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { fmt } from '../../lib/format'
+import { isTransferOrPayment } from '../../lib/transferDetection'
 import GroupedExpenseSelect from './GroupedExpenseSelect'
 import './PendingReviewPanel.css'
 
@@ -17,25 +18,44 @@ export default function PendingReviewPanel({
   const [showRecent, setShowRecent] = useState(false)
   const budgetCats = (categories ?? []).filter(c => !c.is_system)
 
-  const now = new Date()
-  const recentCutoff = new Date(now - RECENT_DAYS * 24 * 60 * 60 * 1000)
-    .toISOString().split('T')[0]
+  const recentCutoff = useMemo(() => {
+    const d = new Date()
+    d.setDate(d.getDate() - RECENT_DAYS)
+    return d.toISOString().split('T')[0]
+  }, [])
 
+  // Only care about debits (expenses) — income and transfers handled elsewhere
+  const debits = useMemo(() =>
+    transactions.filter(t =>
+      !t.ignored &&
+      t.amount < 0 &&
+      !isTransferOrPayment(t.description)
+    ), [transactions])
+
+  // Unmatched debits — need a category assigned
   const unmatched = useMemo(() =>
-    transactions.filter(t => !t.ignored && !t.matched_expense_id && !t.applied),
-    [transactions])
+    debits.filter(t => !t.matched_expense_id && !t.applied),
+    [debits])
 
+  // Matched debits not yet applied to budget totals
   const unapplied = useMemo(() =>
-    transactions.filter(t => !t.ignored && t.matched_expense_id && !t.applied),
-    [transactions])
+    debits.filter(t => t.matched_expense_id && !t.applied),
+    [debits])
 
+  // Recently applied debits — user can correct mistakes
   const recentApplied = useMemo(() =>
-    transactions.filter(t => !t.ignored && t.applied && t.date >= recentCutoff),
-    [transactions, recentCutoff])
+    debits.filter(t => t.applied && t.date >= recentCutoff),
+    [debits, recentCutoff])
 
   const hasAnything = unmatched.length > 0 || unapplied.length > 0
 
-  if (!hasAnything && recentApplied.length === 0) return null
+  if (!hasAnything && recentApplied.length === 0) {
+    return (
+      <div className="pending-panel pending-panel-clean">
+        <span className="pending-panel-title">✅ All caught up — nothing needs your attention</span>
+      </div>
+    )
+  }
 
   return (
     <div className="pending-panel">
@@ -48,16 +68,16 @@ export default function PendingReviewPanel({
             <span className="pending-badge unmatched">{unmatched.length} unmatched</span>
           )}
           {unapplied.length > 0 && (
-            <span className="pending-badge pending">{unapplied.length} pending</span>
+            <span className="pending-badge pending">{unapplied.length} ready to apply</span>
           )}
         </div>
       </div>
 
-      {/* Unmatched transactions */}
+      {/* Unmatched expense transactions */}
       {unmatched.length > 0 && (
         <div className="pending-section">
           <div className="pending-section-label">
-            Unmatched — assign a budget item
+            Unmatched expenses — assign a budget item
           </div>
           {unmatched.map(tx => (
             <PendingRow
@@ -104,7 +124,7 @@ export default function PendingReviewPanel({
         </div>
       )}
 
-      {/* Recently applied — collapsible */}
+      {/* Recently applied — collapsible correction panel */}
       {recentApplied.length > 0 && (
         <div className="pending-section pending-section-recent">
           <button
@@ -159,7 +179,7 @@ function PendingRow({ tx, matched, allExpenses, categories, bankAccounts, onReas
         {acct && <span className="pending-row-acct">{acct.name}</span>}
       </div>
       <div className="pending-row-right">
-        <span className={`mono pending-row-amt ${tx.amount < 0 ? 'v-red' : 'v-green'}`}>
+        <span className="mono pending-row-amt v-red">
           {fmt(tx.amount)}
         </span>
         {busy ? (
