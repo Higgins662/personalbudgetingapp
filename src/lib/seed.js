@@ -136,7 +136,7 @@ export async function seedFromTransactions(userId, {
       ...r,
       user_id:    userId,
       sort_order: i,
-      frequency:  'monthly',
+      frequency:  r.frequency ?? 'monthly',
       enabled:    true,
     })))
     .select('id, category_id')
