@@ -24,6 +24,7 @@ export default function WizardExpenseStep({ transactions, categories, assignment
   const [expandedConfirmed, setExpandedConfirmed] = useState(false)
 
   useEffect(() => {
+    if (!transactions?.length || !categories?.length) return
     const debits = groupByPayee(transactions, 'debit')
 
     // Build a quick lookup: normalised pattern → category name from global pool
@@ -50,15 +51,20 @@ export default function WizardExpenseStep({ transactions, categories, assignment
 
     setGroups(withMatches)
 
-    // Seed assignments with high-confidence matches that aren't already set
-    const initial = { ...assignments }
-    for (const g of withMatches) {
-      if (!initial[g.key] && g.autoMatch) {
-        initial[g.key] = g.autoMatch.item.id
+    // Seed assignments with high-confidence matches — only for keys not already set
+    // Uses functional update to avoid stale closure on assignments
+    onChange(prev => {
+      const next = { ...prev }
+      let changed = false
+      for (const g of withMatches) {
+        if (!next[g.key] && g.autoMatch) {
+          next[g.key] = g.autoMatch.item.id
+          changed = true
+        }
       }
-    }
-    onChange(initial)
-  }, [transactions, categories.length]) // eslint-disable-line react-hooks/exhaustive-deps
+      return changed ? next : prev
+    })
+  }, [transactions, categories.length, globalPatterns]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function assign(key, categoryId) {
     onChange({ ...assignments, [key]: categoryId })
