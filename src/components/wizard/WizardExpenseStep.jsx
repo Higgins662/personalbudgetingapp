@@ -26,10 +26,26 @@ export default function WizardExpenseStep({ transactions, categories, assignment
   useEffect(() => {
     const debits = groupByPayee(transactions, 'debit')
 
-    // Pre-assign high-confidence fuzzy matches
+    // Build a quick lookup: normalised pattern → category name from global pool
+    const globalPatternMap = {}
+    for (const p of globalPatterns) {
+      globalPatternMap[normalizePattern(p.pattern)] = p.category_name
+    }
+
+    // Match tier 1: global payee patterns (crowd-sourced, high confidence)
+    // Match tier 2: fuzzy match against category names
     const withMatches = debits.map(g => {
-      const match = findBestMatch(g.description, categories.map(c => ({ id: c.id, label: c.name })), CONFIDENCE_THRESHOLD)
-      return { ...g, autoMatch: match ?? null, suggestYearly: g.count === 1 }
+      const key           = normalizePattern(g.description)
+      const globalCatName = globalPatternMap[key]
+      const globalCat     = globalCatName
+        ? categories.find(c => c.name === globalCatName)
+        : null
+
+      const match = globalCat
+        ? { item: { id: globalCat.id, label: globalCat.name }, score: 0.95 }
+        : findBestMatch(g.description, categories.map(c => ({ id: c.id, label: c.name })), CONFIDENCE_THRESHOLD) ?? null
+
+      return { ...g, autoMatch: match, suggestYearly: g.count === 1 }
     })
 
     setGroups(withMatches)
