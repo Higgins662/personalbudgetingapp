@@ -102,6 +102,12 @@ export function useBudget(periods) {
     setFn(prev => prev.map(r => r.id === id ? { ...r, [field]: value } : r))
     const { error } = await supabase.from(table).update({ [field]: value }).eq('id', id)
     if (error) { load(); return { error } }
+    // If frequency changed, reload so item moves between monthly/annual lists,
+    // and ensure a period_item exists in the new period type
+    if (field === 'frequency' && !error && periods) {
+      await periods.ensurePeriodItem(id, 'expense', value)
+      load()
+    }
     return { error: null }
   }
 
