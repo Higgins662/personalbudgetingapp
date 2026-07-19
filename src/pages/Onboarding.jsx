@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useGlobalPatterns } from '../hooks/useGlobalPatterns'
@@ -13,6 +13,28 @@ import WizardExpenseStep from '../components/wizard/WizardExpenseStep'
 import WizardBudgetStep from '../components/wizard/WizardBudgetStep'
 import StepTrack from '../components/wizard/StepTrack'
 import './Onboarding.css'
+
+class StepBoundary extends React.Component {
+  constructor(p) { super(p); this.state = { error: null } }
+  static getDerivedStateFromError(e) { return { error: e } }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: '1rem', color: 'var(--red)' }}>
+          <strong>Something went wrong on this step.</strong>
+          <pre style={{ fontSize: '.75rem', marginTop: '.5rem', whiteSpace: 'pre-wrap' }}>
+            {this.state.error.message}
+          </pre>
+          <button className="btn btn-g" style={{ marginTop: '1rem' }}
+            onClick={() => this.setState({ error: null })}>
+            Try again
+          </button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 const STEPS = [
   { label: 'Welcome' },
@@ -307,7 +329,7 @@ export default function Onboarding() {
 
           {/* Step 4: Categorize */}
           {step === 4 && (
-            <div className="fadein">
+            <StepBoundary key={step}><div className="fadein">
               <div className="wiz-step-title">Categorize your spending</div>
               <div className="wiz-step-hint">
                 Assign each payee to a category. We've pre-matched what we can —
@@ -324,6 +346,7 @@ export default function Onboarding() {
                 onAddCategory={handleAddCategory}
               />
             </div>
+          </StepBoundary>
           )}
 
           {/* Step 5: Budget */}
