@@ -159,13 +159,47 @@ export async function seedFromTransactions(userId, {
     applied:  false,
   }))
 
+  // Build income item lookup: normalise description → income item id
+  // so income deposits get matched to income items, not left unmatched
+  const incItemMap = {}
+  for (const item of incData) {
+    const key = item.label?.toUpperCase().trim()
+    if (key) incItemMap[key] = item.id
+  }
+
+  // Also build a lookup by normalised pattern from incomeSelections
+  // (incomeSelections keys are normalised payee descriptions)
+  const incomeKeyToItemId = {}
+  for (const row of incomeRows) {
+    const key = row.label?.toUpperCase().trim()
+    if (key) incomeKeyToItemId[key] = null // will be resolved below
+  }
+
+  // Tag each income transaction with the matching income_item id
+  const finalTxRows = txRows.map(tx => {
+    if (tx.matched_expense_id) return tx // already matched as expense
+    if (tx.amount > 0) {
+      // Positive = deposit — try to match to an income item
+      const key = tx.description?.toUpperCase().trim()
+      const incItemId = incItemMap[key] ?? null
+      if (incItemId) {
+        return { ...tx, matched_expense_id: incItemId, matched_source: 'income' }
+      }
+    }
+    return tx
+  })
+
   // Insert transactions in batches of 500 to avoid Supabase payload limits
   const BATCH_SIZE = 500
-  for (let i = 0; i < txRows.length; i += BATCH_SIZE) {
-    const batch = txRows.slice(i, i + BATCH_SIZE)
+  for (let i = 0; i < finalTxRows.length; i += BATCH_SIZE) {
+    const batch = finalTxRows.slice(i, i + BATCH_SIZE)
     const { error: txErr } = await supabase.from('transactions').insert(batch)
     if (txErr) return { error: txErr }
   }
+
+  // Apply all matched transactions to the budget immediately —
+  // so Reconcile opens clean after onboarding
+  await supabase.rpc('apply_transactions_to_budget', { p_user_id: userId })
 
   // 5. Insert payee rules — resolve temp category ids
   if (payeeRuleMap && Object.keys(payeeRuleMap).length) {
