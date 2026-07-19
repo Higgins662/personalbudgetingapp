@@ -193,10 +193,11 @@ export async function seedFromTransactions(userId, {
     for (const [pattern, catId] of Object.entries(payeeRuleMap)) {
       const cat = catNameMap[resolvecat(catId)]
       if (!cat || cat.is_system) continue
-      supabase.rpc('contribute_payee_pattern', {
+      // Fire-and-forget: wrap in Promise.resolve so .catch works on the thenable
+      Promise.resolve(supabase.rpc('contribute_payee_pattern', {
         p_pattern:       pattern,
         p_category_name: cat.name,
-      }).catch(() => {})
+      })).catch(() => {})
     }
   }
 
