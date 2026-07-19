@@ -269,43 +269,56 @@ async function seedCurrentPeriod(userId) {
  * Used by the seedFromTransactions path.
  */
 async function seedCurrentPeriodWithValues(userId, incData, expData, expenseRows, incomeRows) {
-  const monthStart = new Date()
-  monthStart.setDate(1)
-  const periodStart = monthStart.toISOString().split('T')[0]
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+  const yearStart  = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0]
 
-  // Create (or get) the current monthly period
-  const { data: periodId, error: periodErr } = await supabase.rpc('get_or_create_period', {
-    p_user_id:      userId,
-    p_period_type:  'monthly',
-    p_period_start: periodStart,
+  // Create monthly and yearly periods
+  const { data: monthPeriodId, error: monthErr } = await supabase.rpc('get_or_create_period', {
+    p_user_id: userId, p_period_type: 'monthly', p_period_start: monthStart,
   })
-  if (periodErr) return { error: periodErr }
+  if (monthErr) return { error: monthErr }
 
-  // Build period_items rows — one per income item
+  const { data: yearPeriodId } = await supabase.rpc('get_or_create_period', {
+    p_user_id: userId, p_period_type: 'yearly', p_period_start: yearStart,
+  })
+  // yearPeriodId failure is non-fatal — only matters if there are annual items
+
   const periodItemRows = []
 
+  // Income → monthly period
   for (const item of incData) {
     const sourceRow = incomeRows.find(r => r.label === item.label)
     periodItemRows.push({
-      period_id:  periodId,
-      user_id:    userId,
-      item_id:    item.id,
-      item_type:  'income',
-      budgeted:   sourceRow?.budgeted ?? 0,
-      actual:     sourceRow?.actual   ?? 0,
+      period_id: monthPeriodId,
+      user_id:   userId,
+      item_id:   item.id,
+      item_type: 'income',
+      budgeted:  sourceRow?.budgeted ?? 0,
+      actual:    sourceRow?.actual   ?? 0,
     })
   }
 
-  // One per expense item
+  // Expenses → monthly or yearly period depending on frequency
   for (const item of expData) {
-    const sourceRow = expenseRows.find(r => r.category_id === item.category_id)
+    // Match by id first (yearly items have unique label, monthly match by category)
+    const sourceRow = expenseRows.find(r =>
+      item.frequency === 'annual'
+        ? r.frequency === 'annual' && r.label === item.label
+        : r.frequency !== 'annual' && r.category_id === item.category_id
+    ) ?? expenseRows.find(r => r.category_id === item.category_id)
+
+    const isAnnual  = item.frequency === 'annual'
+    const periodId  = isAnnual ? yearPeriodId : monthPeriodId
+    if (!periodId) continue
+
     periodItemRows.push({
-      period_id:  periodId,
-      user_id:    userId,
-      item_id:    item.id,
-      item_type:  'expense',
-      budgeted:   sourceRow?.budgeted ?? 0,
-      actual:     sourceRow?.actual   ?? 0,
+      period_id: periodId,
+      user_id:   userId,
+      item_id:   item.id,
+      item_type: 'expense',
+      budgeted:  sourceRow?.budgeted ?? 0,
+      actual:    sourceRow?.actual   ?? 0,
     })
   }
 
