@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useGlobalPatterns } from '../hooks/useGlobalPatterns'
 import { seedCategories, seedFallbackBudget, seedFromTransactions } from '../lib/seed'
 import { DEFAULT_CATEGORIES } from '../lib/seedData'
 import { collapseToCategories, calculateBudgets, estimateMonths } from '../lib/transactionAnalysis'
@@ -36,6 +37,7 @@ const BANK_TIPS = [
 
 export default function Onboarding() {
   const { user } = useAuth()
+  const { patterns: globalPatterns } = useGlobalPatterns()
   const navigate  = useNavigate()
 
   const [step,    setStep]    = useState(1)
@@ -316,6 +318,7 @@ export default function Onboarding() {
                 categories={categories}
                 assignments={assignments}
                 yearlyKeys={yearlyKeys}
+                globalPatterns={globalPatterns}
                 onChange={setAssignments}
                 onSetYearly={handleToggleYearly}
                 onAddCategory={handleAddCategory}
