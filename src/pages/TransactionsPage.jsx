@@ -20,6 +20,7 @@ export default function TransactionsPage({ budget, transactions: txHook, periods
   const { transactions, bankAccounts, reload: reloadTx } = txHook
 
   const allExpenses    = [...(monthly ?? []), ...(annual ?? [])]
+  const allIncome      = budget.income ?? []
   // Deduplicate by name in case categories were seeded more than once
   const budgetCats = (categories ?? [])
     .filter(c => !c.is_system)
@@ -173,8 +174,13 @@ export default function TransactionsPage({ budget, transactions: txHook, periods
             </thead>
             <tbody>
               {filtered.map(tx => {
-                const matched = allExpenses.find(e => e.id === tx.matched_expense_id)
-                const cat     = categories?.find(c => c.id === matched?.category_id)
+                const isIncome   = tx.amount > 0
+                const matched    = isIncome
+                  ? allIncome.find(e => e.id === tx.matched_expense_id)
+                  : allExpenses.find(e => e.id === tx.matched_expense_id)
+                const cat        = !isIncome
+                  ? categories?.find(c => c.id === matched?.category_id)
+                  : null
                 const acct    = bankAccounts.find(b => b.id === tx.bank_account_id)
                 const busy    = reassigning[tx.id]
 
@@ -189,21 +195,28 @@ export default function TransactionsPage({ budget, transactions: txHook, periods
                     <td className="tx-cat">
                       {tx.ignored ? (
                         <span className="tx-status-badge ignored">Excluded</span>
+                      ) : isIncome ? (
+                        /* Income — show label, no dropdown */
+                        <span className="tx-income-badge">
+                          💵 {matched?.label ?? 'Income'}
+                        </span>
                       ) : busy ? (
                         <span className="spinner" style={{ width: 14, height: 14 }} />
                       ) : (
-                        <GroupedExpenseSelect
-                          allExpenses={allExpenses}
-                          categories={budgetCats}
-                          value={tx.matched_expense_id ?? ''}
-                          onChange={id => handleReassign(tx.id, id)}
-                          placeholder="Assign to budget item…"
-                        />
-                      )}
-                      {cat && !tx.ignored && (
-                        <span className="tx-cat-name" style={{ color: cat.color }}>
-                          {cat.name}
-                        </span>
+                        <>
+                          <GroupedExpenseSelect
+                            allExpenses={allExpenses}
+                            categories={budgetCats}
+                            value={tx.matched_expense_id ?? ''}
+                            onChange={id => handleReassign(tx.id, id)}
+                            placeholder="Assign to budget item…"
+                          />
+                          {cat && (
+                            <span className="tx-cat-name" style={{ color: cat.color }}>
+                              {cat.name}
+                            </span>
+                          )}
+                        </>
                       )}
                     </td>
                     <td>
