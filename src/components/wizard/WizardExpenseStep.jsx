@@ -51,6 +51,14 @@ export default function WizardExpenseStep({ transactions, categories, assignment
 
     setGroups(withMatches)
 
+    // Auto-flag likely_annual payees — pre-check yearly toggle without overriding user choices
+    if (annualPatternKeys.size > 0 && onSetYearly) {
+      withMatches.forEach(g => {
+        const key = normalizePattern(g.description ?? '')
+        if (annualPatternKeys.has(key)) onSetYearly(g.key)
+      })
+    }
+
     // Seed assignments with high-confidence matches — only for keys not already set
     // Uses functional update to avoid stale closure on assignments
     onChange(prev => {
