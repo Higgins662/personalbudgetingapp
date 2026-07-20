@@ -331,7 +331,13 @@ async function seedCurrentPeriodWithValues(userId, incData, expData, expenseRows
   if (periodItemRows.length) {
     const BATCH = 500
     for (let i = 0; i < periodItemRows.length; i += BATCH) {
-      const { error } = await supabase.from('period_items').insert(periodItemRows.slice(i, i + BATCH))
+      // Upsert so we overwrite the zeros that get_or_create_period already inserted
+      const { error } = await supabase
+        .from('period_items')
+        .upsert(periodItemRows.slice(i, i + BATCH), {
+          onConflict: 'period_id,item_id',
+          ignoreDuplicates: false,
+        })
       if (error) return { error }
     }
   }
