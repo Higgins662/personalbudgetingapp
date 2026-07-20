@@ -27,16 +27,20 @@ export default function WizardExpenseStep({ transactions, categories, assignment
     if (!transactions?.length || !categories?.length) return
     const debits = groupByPayee(transactions, 'debit')
 
-    // Build a quick lookup: normalised pattern → category name from global pool
-    const globalPatternMap = {}
-    for (const p of globalPatterns) {
-      globalPatternMap[normalizePattern(p.pattern)] = p.category_name
+    // Build lookups: pattern → category name, and set of likely-annual patterns
+    const globalPatternMap  = {}
+    const annualPatternKeys = new Set()
+    for (const p of (globalPatterns ?? [])) {
+      if (!p.pattern) continue
+      const key = normalizePattern(p.pattern)
+      globalPatternMap[key] = p.category_name
+      if (p.likely_annual) annualPatternKeys.add(key)
     }
 
     // Match tier 1: global payee patterns (crowd-sourced, high confidence)
     // Match tier 2: fuzzy match against category names
     const withMatches = debits.map(g => {
-      const key           = normalizePattern(g.description)
+      const key           = normalizePattern(g.description ?? '')
       const globalCatName = globalPatternMap[key]
       const globalCat     = globalCatName
         ? categories.find(c => c.name === globalCatName)
@@ -46,12 +50,15 @@ export default function WizardExpenseStep({ transactions, categories, assignment
         ? { item: { id: globalCat.id, label: globalCat.name }, score: 0.95 }
         : findBestMatch(g.description, categories.map(c => ({ id: c.id, label: c.name })), CONFIDENCE_THRESHOLD) ?? null
 
-      return { ...g, autoMatch: match, suggestYearly: g.count === 1 }
+      // Suggest yearly if: single occurrence OR known annual global pattern
+      const suggestYearly = g.count === 1 || annualPatternKeys.has(key)
+
+      return { ...g, autoMatch: match, suggestYearly }
     })
 
     setGroups(withMatches)
 
-    // Auto-flag likely_annual payees — pre-check yearly toggle without overriding user choices
+    // Auto-flag likely_annual payees — only adds, never removes user choices
     if (annualPatternKeys.size > 0 && onSetYearly) {
       withMatches.forEach(g => {
         const key = normalizePattern(g.description ?? '')
