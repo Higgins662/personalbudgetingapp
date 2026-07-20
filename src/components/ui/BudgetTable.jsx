@@ -14,6 +14,7 @@ export default function BudgetTable({
   onAdd,
   onDelete,
   showCategory = true,
+  readOnlyCategory = false,
   showLabel = true,
   showPaymentMethod = false,
   showFrequency = false,
