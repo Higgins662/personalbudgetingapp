@@ -246,9 +246,20 @@ export default function Onboarding() {
   }
 
   function handleToggleYearly(key) {
+    // User explicitly clicked — toggle on/off
     setYearlyKeys(prev => {
       const next = new Set(prev)
       next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+  }
+
+  function handleAutoSetYearly(key) {
+    // Called by auto-detection — only adds, never removes user's choices
+    setYearlyKeys(prev => {
+      if (prev.has(key)) return prev
+      const next = new Set(prev)
+      next.add(key)
       return next
     })
   }
@@ -377,7 +388,7 @@ export default function Onboarding() {
                 yearlyKeys={yearlyKeys}
                 globalPatterns={globalPatterns}
                 onChange={setAssignments}
-                onSetYearly={handleToggleYearly}
+                onSetYearly={handleAutoSetYearly}
                 onAddCategory={handleAddCategory}
               />
             </div>
