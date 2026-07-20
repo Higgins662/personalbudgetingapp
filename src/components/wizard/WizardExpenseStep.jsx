@@ -17,7 +17,7 @@ const CONFIDENCE_THRESHOLD = 0.6
  *   onChange        — (assignments) => void
  *   onAddCategory   — (newCategory) => void — parent appends to category list
  */
-export default function WizardExpenseStep({ transactions, categories, assignments, yearlyKeys, globalPatterns = [], onChange, onSetYearly, onAddCategory }) {
+export default function WizardExpenseStep({ transactions, categories, assignments, yearlyKeys, globalPatterns = [], onChange, onSetYearly, onToggleYearly, onAddCategory }) {
   const [groups,    setGroups]    = useState([])
   const [showNew,   setShowNew]   = useState(false)
   const [newCatName, setNewCatName] = useState('')
