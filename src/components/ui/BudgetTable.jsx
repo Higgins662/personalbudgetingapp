@@ -212,6 +212,7 @@ export default function BudgetTable({
               categories={categories}
               bankAccounts={bankAccounts}
               showCategory={showCategory}
+              readOnlyCategory={readOnlyCategory}
               showPaymentMethod={showPaymentMethod}
               showFrequency={showFrequency}
               paymentMethodLabel={paymentMethodLabel}
@@ -315,7 +316,7 @@ function RowToggle({ enabled, onChange }) {
 }
 
 function MobileRow({ row, diff, enabled, categories, bankAccounts, showCategory,
-                     showPaymentMethod, showFrequency, paymentMethodLabel, onUpdate, onDelete }) {
+                     readOnlyCategory, showPaymentMethod, showFrequency, paymentMethodLabel, onUpdate, onDelete }) {
   const [expanded, setExpanded] = useState(false)
   const cat  = categories.find(c => c.id === row.category_id)
   const bank = bankAccounts.find(b => b.id === row.bank_account_id)
@@ -350,7 +351,7 @@ function MobileRow({ row, diff, enabled, categories, bankAccounts, showCategory,
           {showCategory && (
             <div className="mob-detail-row">
               <span>Category</span>
-              <CategoryBadge categoryId={row.category_id} categories={categories} onSelect={id => onUpdate(row.id, 'category_id', id)} />
+              <CategoryBadge categoryId={row.category_id} categories={categories} onSelect={id => onUpdate(row.id, 'category_id', id)} readOnly={readOnlyCategory} />
             </div>
           )}
           {showPaymentMethod && (
