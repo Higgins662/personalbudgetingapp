@@ -131,7 +131,7 @@ export default function WizardExpenseStep({ transactions, categories, assignment
               yearly={yearlyKeys?.has(g.key)}
               suggestYearly={g.suggestYearly}
               onAssign={id => assign(g.key, id)}
-              onToggleYearly={() => onSetYearly(g.key)}
+              onToggleYearly={() => onToggleYearly(g.key)}
               defaultExpanded
             />
           ))}
@@ -158,7 +158,7 @@ export default function WizardExpenseStep({ transactions, categories, assignment
               yearly={yearlyKeys?.has(g.key)}
               suggestYearly={g.suggestYearly}
               onAssign={id => assign(g.key, id)}
-              onToggleYearly={() => onSetYearly(g.key)}
+              onToggleYearly={() => onToggleYearly(g.key)}
               defaultExpanded={false}
             />
           ))}
