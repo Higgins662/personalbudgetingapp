@@ -228,9 +228,15 @@ export async function seedFromTransactions(userId, {
       const cat = catNameMap[resolvecat(catId)]
       if (!cat || cat.is_system) continue
       // Fire-and-forget: wrap in Promise.resolve so .catch works on the thenable
+      // Flag as likely_annual if this pattern appears in the yearly expense rows
+      const isAnnual = (expenseRows ?? []).some(r =>
+        r.frequency === 'annual' &&
+        (r.label ?? '').toUpperCase().trim() === (pattern ?? '').toUpperCase().trim()
+      )
       Promise.resolve(supabase.rpc('contribute_payee_pattern', {
         p_pattern:       pattern,
         p_category_name: cat.name,
+        p_likely_annual: isAnnual,
       })).catch(() => {})
     }
   }
