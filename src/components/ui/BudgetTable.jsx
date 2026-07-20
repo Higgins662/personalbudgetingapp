@@ -113,6 +113,7 @@ export default function BudgetTable({
                         categoryId={row.category_id}
                         categories={categories}
                         onSelect={id => onUpdate(row.id, 'category_id', id)}
+                        readOnly={readOnlyCategory}
                       />
                     </td>
                   )}
