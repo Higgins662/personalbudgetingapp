@@ -389,6 +389,7 @@ export default function Onboarding() {
                 globalPatterns={globalPatterns}
                 onChange={setAssignments}
                 onSetYearly={handleAutoSetYearly}
+                onToggleYearly={handleToggleYearly}
                 onAddCategory={handleAddCategory}
               />
             </div>
