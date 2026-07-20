@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { fmt } from '../../lib/format'
 import { groupByPayee } from '../../lib/transactionAnalysis'
 import { findBestMatch, normalizePattern } from '../../lib/fuzzyMatch'
@@ -22,6 +22,7 @@ export default function WizardExpenseStep({ transactions, categories, assignment
   const [showNew,   setShowNew]   = useState(false)
   const [newCatName, setNewCatName] = useState('')
   const [expandedConfirmed, setExpandedConfirmed] = useState(false)
+  const autoSetDoneRef = React.useRef(false)
 
   useEffect(() => {
     if (!transactions?.length || !categories?.length) return
@@ -58,14 +59,6 @@ export default function WizardExpenseStep({ transactions, categories, assignment
 
     setGroups(withMatches)
 
-    // Auto-flag likely_annual payees — only adds, never removes user choices
-    if (annualPatternKeys.size > 0 && onSetYearly) {
-      withMatches.forEach(g => {
-        const key = normalizePattern(g.description ?? '')
-        if (annualPatternKeys.has(key)) onSetYearly(g.key)
-      })
-    }
-
     // Seed assignments with high-confidence matches — only for keys not already set
     // Uses functional update to avoid stale closure on assignments
     onChange(prev => {
@@ -80,6 +73,25 @@ export default function WizardExpenseStep({ transactions, categories, assignment
       return changed ? next : prev
     })
   }, [transactions, categories.length, globalPatterns]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // One-shot: auto-flag likely_annual patterns when groups first load.
+  // Uses a ref so this never fires again after the user has interacted —
+  // preventing re-checked boxes after manual unchecks.
+  React.useEffect(() => {
+    if (!groups.length || !onSetYearly || autoSetDoneRef.current) return
+    const annualKeys = new Set(
+      (globalPatterns ?? [])
+        .filter(p => p.likely_annual && p.pattern)
+        .map(p => normalizePattern(p.pattern))
+    )
+    if (!annualKeys.size) return
+    groups.forEach(g => {
+      if (annualKeys.has(normalizePattern(g.description ?? ''))) {
+        onSetYearly(g.key)
+      }
+    })
+    autoSetDoneRef.current = true
+  }, [groups]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function assign(key, categoryId) {
     onChange({ ...assignments, [key]: categoryId })
