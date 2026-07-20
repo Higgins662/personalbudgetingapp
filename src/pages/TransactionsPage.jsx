@@ -198,7 +198,7 @@ export default function TransactionsPage({ budget, transactions: txHook, periods
                       ) : isIncome ? (
                         /* Income — show label, no dropdown */
                         <span className="tx-income-badge">
-                          💵 {matched?.label ?? 'Income'}
+                          💵 Credit
                         </span>
                       ) : busy ? (
                         <span className="spinner" style={{ width: 14, height: 14 }} />
