@@ -16,9 +16,36 @@ function norm(s) {
   return (s ?? '').toLowerCase().replace(/[^a-z0-9 ]/g, '').trim()
 }
 
-/** Normalize a transaction description into a rule "pattern" key */
+/** Normalize a transaction description into a stable merchant key.
+ *  Strips per-transaction noise (embedded dates, bank suffixes) so that
+ *  recurring charges from the same merchant group together correctly.
+ *  Examples:
+ *    "SP BEAM 05-22 SHOPBEAM.COM MA 1808 DEBIT CARD RECURRING PYMT"
+ *    "SP BEAM 06-21 SHOPBEAM.COM MA 1808 DEBIT CARD RECURRING PYMT"
+ *  both normalize to: "SP BEAM SHOPBEAM.COM MA 1808"
+ */
 export function normalizePattern(description) {
-  return (description ?? '').toUpperCase().trim()
+  let s = (description ?? '').toUpperCase().trim()
+
+  // Strip embedded date fragments: MM-DD, MM/DD (e.g. "05-22", "06/21")
+  s = s.replace(/\b\d{2}[-/]\d{2}\b/g, '')
+
+  // Strip full date variants: YYYY-MM-DD, MM/DD/YYYY, MM-DD-YYYY
+  s = s.replace(/\b\d{4}[-/]\d{2}[-/]\d{2}\b/g, '')
+  s = s.replace(/\b\d{2}[-/]\d{2}[-/]\d{4}\b/g, '')
+
+  // Strip common bank description noise words
+  const noise = [
+    'DEBIT CARD', 'RECURRING PYMT', 'RECURRING PAYMENT',
+    'RECURRING', 'PURCHASE', 'POS PURCHASE', 'POS DEBIT',
+    'PYMT', 'ONLINE PMT', 'ONLINE',
+  ]
+  for (const n of noise) {
+    s = s.replace(new RegExp('\\b' + n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'g'), '')
+  }
+
+  // Collapse multiple spaces
+  return s.replace(/\s+/g, ' ').trim()
 }
 
 /** Simple token overlap score (0–1) */
