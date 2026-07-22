@@ -209,7 +209,7 @@ function PayeeGroup({ group, categories, assigned, yearly, suggestYearly, onAssi
           <span className="wiz-payee-meta">
             {group.count} transaction{group.count === 1 ? '' : 's'} · <span className="mono">{fmt(group.total)}</span>
             {group.count > 1 && (
-              <span className="wiz-payee-avg"> · avg <span className="mono">{fmt(group.total / group.count)}</span> each</span>
+              <span className="wiz-payee-avg"> · avg <span className="mono">{fmt(group.total / group.count)}</span></span>
             )}
           </span>
         </div>
