@@ -350,3 +350,8 @@
   padding: .1rem .45rem;
   white-space: nowrap;
 }
+
+.wiz-payee-avg {
+  color: var(--ink3);
+  font-size: .8em;
+}
