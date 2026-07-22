@@ -352,3 +352,57 @@
 @media (max-width: 480px) {
   .wiz-csv-tip-row { grid-template-columns: 1fr; gap: .15rem; }
 }
+
+/* ── CSV column preview ── */
+.csv-preview-wrap {
+  margin-bottom: 1rem;
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  background: var(--card2);
+  overflow: hidden;
+}
+
+.csv-preview-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.csv-preview-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+  font-size: .75rem;
+  font-family: 'DM Mono', monospace;
+}
+
+.csv-preview-table thead tr {
+  background: var(--ink);
+}
+
+.csv-preview-table th {
+  padding: .35rem .6rem;
+  text-align: left;
+  color: #e8d58a;
+  font-weight: 600;
+  font-size: .7rem;
+  white-space: nowrap;
+  border-right: 1px solid #2d3f52;
+}
+
+.csv-preview-table td {
+  padding: .3rem .6rem;
+  color: var(--ink2);
+  white-space: nowrap;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.csv-preview-table tbody tr:nth-child(odd) {
+  background: var(--card);
+}
+.csv-preview-table tbody tr:nth-child(even) {
+  background: var(--card2);
+}
