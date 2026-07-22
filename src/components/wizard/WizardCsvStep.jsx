@@ -150,6 +150,26 @@ export default function WizardCsvStep({ expenseItems, pendingBanks, onAddBank, o
             Found <strong>{csvRows.length}</strong> rows in <strong>{csvFile?.name}</strong>.
             Map the columns below.
           </p>
+          {/* ── CSV preview: header + first 3 rows ── */}
+          <div className="csv-preview-wrap">
+            <div className="csv-preview-scroll">
+              <table className="csv-preview-table">
+                <thead>
+                  <tr>
+                    {csvHeaders.map(h => <th key={h}>{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {csvRows.slice(0, 3).map((row, i) => (
+                    <tr key={i}>
+                      {csvHeaders.map(h => <td key={h}>{row[h] ?? ''}</td>)}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           <div className="fgrid">
             <div className="fg">
               <label>Date column</label>
