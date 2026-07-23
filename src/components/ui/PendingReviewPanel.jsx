@@ -209,11 +209,20 @@ function PendingRow({ tx, matched, allExpenses, categories, bankAccounts, onReas
         const newItemId = await promoteToAnnual(tx.matched_expense_id)
         if (onLearnRule) onLearnRule(tx.description, newItemId ?? tx.matched_expense_id)
       } else {
-        // Revert to monthly
-        await supabase
-          .from('expense_items')
-          .update({ frequency: 'monthly' })
-          .eq('id', tx.matched_expense_id)
+        // Revert: the matched item is the promoted annual one — delete it and
+        // unmatch the transaction so the user can reassign it cleanly
+        const itemToDelete = tx.matched_expense_id
+        // First unapply: call reassign with null to unmatch and reverse actuals
+        await supabase.rpc('reassign_transaction', {
+          p_user_id:             tx.user_id,
+          p_tx_id:               tx.id,
+          p_new_expense_item_id: null,
+        })
+        // Then delete the orphaned annual expense_item we created
+        await supabase.from('expense_items').delete().eq('id', itemToDelete)
+        // Also clean up any period_items for that item
+        await supabase.from('period_items').delete().eq('item_id', itemToDelete)
+        if (onReassign) await onReassign(tx.id, null)
       }
       if (onFrequencyChange) onFrequencyChange()
       setBusy(false)
