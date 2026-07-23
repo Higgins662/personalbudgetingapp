@@ -111,6 +111,38 @@ export default function TransactionsPage({ budget, transactions: txHook, periods
     }
   }, [user, reloadTx, periods])
 
+  const handleIgnore = useCallback(async (txId, currentlyIgnored) => {
+    await supabase
+      .from('transactions')
+      .update({ ignored: !currentlyIgnored, applied: false })
+      .eq('id', txId)
+      .eq('user_id', user.id)
+    reloadTx()
+    if (periods) periods.reload()
+  }, [user, reloadTx, periods])
+
+  const handleUnapply = useCallback(async (txId) => {
+    // Reverse the actual on the period_item, then mark as unapplied
+    const { error } = await supabase.rpc('reassign_transaction', {
+      p_user_id:             user.id,
+      p_tx_id:               txId,
+      p_new_expense_item_id: null,
+    })
+    if (!error) {
+      // Reassign back to original item to restore the match without applying
+      // Find the current matched item from local state
+      const tx = transactions.find(t => t.id === txId)
+      if (tx?.matched_expense_id) {
+        await supabase
+          .from('transactions')
+          .update({ matched_expense_id: tx.matched_expense_id, applied: false })
+          .eq('id', txId)
+      }
+      reloadTx()
+      if (periods) periods.reload()
+    }
+  }, [user, reloadTx, periods, transactions])
+
   const totalFiltered = filtered.reduce((s, t) => s + (t.amount < 0 ? Math.abs(t.amount) : 0), 0)
 
   return (
@@ -220,13 +252,34 @@ export default function TransactionsPage({ budget, transactions: txHook, periods
                       )}
                     </td>
                     <td>
-                      {tx.ignored
-                        ? <span className="tx-status-badge ignored">excluded</span>
-                        : tx.applied
-                          ? <span className="tx-status-badge applied">applied</span>
-                          : tx.matched_expense_id
-                            ? <span className="tx-status-badge pending">pending</span>
-                            : <span className="tx-status-badge unmatched">unmatched</span>}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '.4rem', flexWrap: 'wrap' }}>
+                        {tx.ignored
+                          ? <span className="tx-status-badge ignored">excluded</span>
+                          : tx.applied
+                            ? <span className="tx-status-badge applied">applied</span>
+                            : tx.matched_expense_id
+                              ? <span className="tx-status-badge pending">pending</span>
+                              : <span className="tx-status-badge unmatched">unmatched</span>}
+                        {/* Action buttons */}
+                        {!tx.ignored && tx.amount < 0 && (
+                          <button
+                            className="tx-action-btn"
+                            title={tx.applied ? 'Undo — remove from budget totals' : 'Exclude this transaction'}
+                            onClick={() => tx.applied ? handleUnapply(tx.id) : handleIgnore(tx.id, false)}
+                          >
+                            {tx.applied ? '↩' : '✕'}
+                          </button>
+                        )}
+                        {tx.ignored && (
+                          <button
+                            className="tx-action-btn"
+                            title="Restore — stop excluding this transaction"
+                            onClick={() => handleIgnore(tx.id, true)}
+                          >
+                            ↩
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )
