@@ -266,13 +266,26 @@ export default function ReconcilePage({ budget, transactions: txHook, periods, o
           applying={applying}
           onApply={handleApplyToBudget}
           onFrequencyChange={() => { reloadBudget(); if (periods) periods.reload() }}
+          onLearnRule={(desc, itemId) => learnRule(desc, itemId)}
           onReassign={async (txId, itemId) => {
+            const tx = transactions.find(t => t.id === txId)
             const { error } = await supabase.rpc('reassign_transaction', {
               p_user_id: user.id,
               p_tx_id: txId,
               p_new_expense_item_id: itemId || null,
             })
-            if (!error) { reloadTx(); if (periods) periods.reload() }
+            if (!error) {
+              // Learn this assignment as a personal payee rule
+              if (tx && itemId) {
+                learnRule(tx.description, itemId)
+                // Contribute to global patterns
+                const expItem = allExpenses.find(e => e.id === itemId)
+                const cat = categories.find(c => c.id === expItem?.category_id)
+                if (cat && !cat.is_system) contribute(tx.description, cat.name)
+              }
+              reloadTx()
+              if (periods) periods.reload()
+            }
           }}
         />
       )}
