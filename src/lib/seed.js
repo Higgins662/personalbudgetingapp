@@ -175,15 +175,14 @@ export async function seedFromTransactions(userId, {
     if (key) incomeKeyToItemId[key] = null // will be resolved below
   }
 
-  // Tag each income transaction with the matching income_item id
+  // Tag income transactions with matched_source only — do NOT set matched_expense_id
+  // since that FK references expense_items, not income_items
   const finalTxRows = txRows.map(tx => {
     if (tx.matched_expense_id) return tx // already matched as expense
     if (tx.amount > 0) {
-      // Positive = deposit — try to match to an income item
       const key = tx.description?.toUpperCase().trim()
-      const incItemId = incItemMap[key] ?? null
-      if (incItemId) {
-        return { ...tx, matched_expense_id: incItemId, matched_source: 'income' }
+      if (incItemMap[key]) {
+        return { ...tx, matched_source: 'income' }
       }
     }
     return tx
