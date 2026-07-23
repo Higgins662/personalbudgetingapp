@@ -145,6 +145,35 @@ export async function seedFromTransactions(userId, {
   // Build category_id → expense_item id lookup (one expense item per category)
   const catToExpItemId = Object.fromEntries(expData.map(e => [e.category_id, e.id]))
 
+  // Insert empty monthly expense_items for any categories not covered by transactions
+  // so they still appear in the Reconcile/Transactions assign dropdowns
+  const coveredCatIds = new Set(Object.keys(catToExpItemId))
+  const uncoveredCats = userCategories.filter(c =>
+    !c.is_system && !coveredCatIds.has(c.id)
+  )
+  if (uncoveredCats.length) {
+    const emptyRows = uncoveredCats.map((c, i) => ({
+      user_id:    userId,
+      label:      c.name,
+      category_id: c.id,
+      note:       '',
+      frequency:  'monthly',
+      budgeted:   0,
+      actual:     0,
+      enabled:    true,
+      sort_order: (resolvedExpenseRows.length) + i,
+    }))
+    const { data: emptyData } = await supabase
+      .from('expense_items')
+      .insert(emptyRows)
+      .select('id, category_id')
+    // Merge into lookup and expData so period seeding picks them up too
+    if (emptyData) {
+      for (const e of emptyData) catToExpItemId[e.category_id] = e.id
+      expData.push(...emptyData)
+    }
+  }
+
   // 4. Insert transactions — resolve staging ids to real ids
   const txRows = transactions.map(tx => ({
     user_id:            userId,
