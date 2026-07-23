@@ -187,11 +187,13 @@ export function useBudget(periods) {
     setMonthly(prev => prev.filter(r => r.id !== id))
     await supabase.from('expense_items').delete().eq('id', id)
     await supabase.from('period_items').delete().eq('item_id', id).eq('item_type', 'expense')
+    if (periods) periods.reload()
   }
   async function deleteAnnual(id) {
     setAnnual(prev => prev.filter(r => r.id !== id))
     await supabase.from('expense_items').delete().eq('id', id)
     await supabase.from('period_items').delete().eq('item_id', id).eq('item_type', 'expense')
+    if (periods) periods.reload()
   }
 
   const updateCategory = (id, field, value) => updateTemplateField('categories', id, field, value, setCategories)
