@@ -198,8 +198,32 @@ export function useBudget(periods) {
   async function addCategory(row) {
     const newRow = { ...row, user_id: user.id, sort_order: categories.filter(c => !c.is_system).length }
     const { data, error } = await supabase.from('categories').insert(newRow).select().single()
-    if (!error) setCategories(prev => [...prev, data])
-    return { error }
+    if (error) return { error }
+    setCategories(prev => [...prev, data])
+
+    // Also create a monthly expense_item for this category so it appears
+    // immediately in the Monthly Expenses tab and all assign dropdowns
+    const expRow = {
+      user_id:    user.id,
+      label:      data.name,
+      category_id: data.id,
+      note:       '',
+      frequency:  'monthly',
+      enabled:    true,
+      sort_order: 0,
+    }
+    const { data: expData, error: expErr } = await supabase
+      .from('expense_items')
+      .insert(expRow)
+      .select()
+      .single()
+
+    if (!expErr && expData) {
+      setMonthly(prev => [...prev, { ...expData, budgeted: 0, actual: 0, period_item_id: null }])
+      if (periods) await periods.ensurePeriodItem(expData.id, 'expense', 'monthly')
+    }
+
+    return { error: null }
   }
   async function deleteCategory(id) {
     // Prevent deletion of system categories
