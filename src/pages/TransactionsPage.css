@@ -126,3 +126,22 @@
   padding: .15rem .55rem;
   white-space: nowrap;
 }
+
+/* ── Row action buttons (undo/exclude) ── */
+.tx-action-btn {
+  background: none;
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  color: var(--ink3);
+  font-size: .72rem;
+  padding: .1rem .35rem;
+  cursor: pointer;
+  line-height: 1.4;
+  transition: all .15s;
+  flex-shrink: 0;
+}
+.tx-action-btn:hover {
+  background: var(--card2);
+  color: var(--ink);
+  border-color: var(--ink3);
+}
