@@ -265,6 +265,7 @@ export default function ReconcilePage({ budget, transactions: txHook, periods, o
           bankAccounts={bankAccounts}
           applying={applying}
           onApply={handleApplyToBudget}
+          onFrequencyChange={() => { reloadBudget(); if (periods) periods.reload() }}
           onReassign={async (txId, itemId) => {
             const { error } = await supabase.rpc('reassign_transaction', {
               p_user_id: user.id,
