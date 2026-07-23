@@ -122,12 +122,78 @@ function PendingRow({ tx, matched, allExpenses, categories, bankAccounts, onReas
   // Keep yearly checkbox in sync if matched item changes
   const currentlyAnnual = matched?.frequency === 'annual'
 
+  async function promoteToAnnual(expenseItemId) {
+    // 1. Update expense_item: annual frequency + label from transaction description
+    await supabase
+      .from('expense_items')
+      .update({ frequency: 'annual', label: tx.description })
+      .eq('id', expenseItemId)
+
+    // 2. Find the current month and year periods
+    const now        = new Date()
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
+    const yearStart  = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0]
+
+    const { data: periods } = await supabase
+      .from('budget_periods')
+      .select('id, period_type, period_start')
+      .in('period_type', ['monthly', 'yearly'])
+
+    const monthPeriod = periods?.find(p => p.period_type === 'monthly' && p.period_start === monthStart)
+    let   yearPeriod  = periods?.find(p => p.period_type === 'yearly'  && p.period_start === yearStart)
+
+    // 3. Create yearly period if it doesn't exist
+    if (!yearPeriod) {
+      const { data: newPeriod } = await supabase
+        .from('budget_periods')
+        .insert({ user_id: tx.user_id, period_type: 'yearly', period_start: yearStart })
+        .select()
+        .single()
+      yearPeriod = newPeriod
+    }
+    if (!yearPeriod) return
+
+    // 4. Get the actual amount from the monthly period_item (already applied)
+    let actualAmount = Math.abs(tx.amount)
+    let budgetedAmount = Math.abs(tx.amount)
+
+    if (monthPeriod) {
+      const { data: monthItem } = await supabase
+        .from('period_items')
+        .select('actual, budgeted')
+        .eq('period_id', monthPeriod.id)
+        .eq('item_id', expenseItemId)
+        .single()
+      if (monthItem) {
+        actualAmount   = monthItem.actual
+        budgetedAmount = monthItem.budgeted || Math.abs(tx.amount)
+        // Zero out the monthly period_item
+        await supabase
+          .from('period_items')
+          .update({ actual: 0, budgeted: 0 })
+          .eq('period_id', monthPeriod.id)
+          .eq('item_id', expenseItemId)
+      }
+    }
+
+    // 5. Upsert the yearly period_item with the real amounts
+    await supabase
+      .from('period_items')
+      .upsert({
+        period_id: yearPeriod.id,
+        user_id:   tx.user_id,
+        item_id:   expenseItemId,
+        item_type: 'expense',
+        budgeted:  budgetedAmount,
+        actual:    actualAmount,
+      }, { onConflict: 'period_id,item_id' })
+  }
+
   async function handleChange(id) {
     setBusy(true)
     await onReassign(tx.id, id)
-    // After assignment, if yearly is checked, flip the expense_item frequency
     if (yearly && id) {
-      await supabase.from('expense_items').update({ frequency: 'annual' }).eq('id', id)
+      await promoteToAnnual(id)
       if (onFrequencyChange) onFrequencyChange()
     }
     setBusy(false)
@@ -137,13 +203,17 @@ function PendingRow({ tx, matched, allExpenses, categories, bankAccounts, onReas
     e.stopPropagation()
     const nowYearly = !yearly
     setYearly(nowYearly)
-    // If already assigned, flip the existing expense_item immediately
     if (tx.matched_expense_id) {
       setBusy(true)
-      await supabase
-        .from('expense_items')
-        .update({ frequency: nowYearly ? 'annual' : 'monthly' })
-        .eq('id', tx.matched_expense_id)
+      if (nowYearly) {
+        await promoteToAnnual(tx.matched_expense_id)
+      } else {
+        // Revert to monthly
+        await supabase
+          .from('expense_items')
+          .update({ frequency: 'monthly' })
+          .eq('id', tx.matched_expense_id)
+      }
       if (onFrequencyChange) onFrequencyChange()
       setBusy(false)
     }
