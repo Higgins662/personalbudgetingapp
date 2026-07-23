@@ -206,8 +206,8 @@ function PendingRow({ tx, matched, allExpenses, categories, bankAccounts, onReas
     if (tx.matched_expense_id) {
       setBusy(true)
       if (nowYearly) {
-        await promoteToAnnual(tx.matched_expense_id)
-        if (onLearnRule) onLearnRule(tx.description, tx.matched_expense_id)
+        const newItemId = await promoteToAnnual(tx.matched_expense_id)
+        if (onLearnRule) onLearnRule(tx.description, newItemId ?? tx.matched_expense_id)
       } else {
         // Revert to monthly
         await supabase
