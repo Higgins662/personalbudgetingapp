@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { normalizePattern } from './fuzzyMatch'
 import { DEFAULT_CATEGORIES, DEFAULT_INCOME, DEFAULT_MONTHLY_EXPENSES } from './seedData'
 import { DEFAULT_GOALS } from './goalSeedData'
 
@@ -139,15 +140,26 @@ export async function seedFromTransactions(userId, {
       frequency:  r.frequency ?? 'monthly',
       enabled:    true,
     })))
-    .select('id, category_id')
+    .select('id, category_id, frequency, label')
   if (expErr) return { error: expErr }
 
-  // Build category_id → expense_item id lookup (one expense item per category)
-  const catToExpItemId = Object.fromEntries(expData.map(e => [e.category_id, e.id]))
+  // Two SEPARATE lookups — a category can have both a monthly item AND one
+  // or more dedicated annual items (e.g. "Subscriptions" monthly + "Ring" yearly).
+  // Using a single category_id → item map would collapse them and misroute
+  // every transaction in that category to whichever item was inserted last.
+  const catToMonthlyItemId = Object.fromEntries(
+    expData.filter(e => e.frequency !== 'annual').map(e => [e.category_id, e.id])
+  )
+  const annualPatternToItemId = {}
+  for (const e of expData) {
+    if (e.frequency === 'annual') {
+      annualPatternToItemId[normalizePattern(e.label)] = e.id
+    }
+  }
 
   // Insert empty monthly expense_items for any categories not covered by transactions
   // so they still appear in the Reconcile/Transactions assign dropdowns
-  const coveredCatIds = new Set(Object.keys(catToExpItemId))
+  const coveredCatIds = new Set(Object.keys(catToMonthlyItemId))
   const uncoveredCats = userCategories.filter(c =>
     !c.is_system && !coveredCatIds.has(c.id)
   )
@@ -166,27 +178,35 @@ export async function seedFromTransactions(userId, {
     const { data: emptyData } = await supabase
       .from('expense_items')
       .insert(emptyRows)
-      .select('id, category_id')
-    // Merge into lookup and expData so period seeding picks them up too
+      .select('id, category_id, frequency, label')
     if (emptyData) {
-      for (const e of emptyData) catToExpItemId[e.category_id] = e.id
+      for (const e of emptyData) catToMonthlyItemId[e.category_id] = e.id
       expData.push(...emptyData)
     }
   }
 
-  // 4. Insert transactions — resolve staging ids to real ids
-  const txRows = transactions.map(tx => ({
-    user_id:            userId,
-    bank_account_id:    acctIdMap[tx.stagingBankId] ?? null,
-    date:               tx.date,
-    description:        tx.description,
-    amount:             tx.amount,
-    matched_expense_id: tx.assignedCategoryId
-      ? (catToExpItemId[resolvecat(tx.assignedCategoryId)] ?? null)
-      : null,
-    ignored:  tx.ignored ?? false,
-    applied:  false,
-  }))
+  // 4. Insert transactions — resolve staging ids to real ids.
+  // Match to the dedicated ANNUAL item first (by normalised description),
+  // falling back to the category's monthly item. This is what keeps a
+  // once-a-year charge (Ring) from being lumped into the same bucket as
+  // the category's regular monthly charges.
+  const txRows = transactions.map(tx => {
+    const pattern       = normalizePattern(tx.description)
+    const annualMatch    = annualPatternToItemId[pattern]
+    const monthlyMatch   = tx.assignedCategoryId
+      ? (catToMonthlyItemId[resolvecat(tx.assignedCategoryId)] ?? null)
+      : null
+    return {
+      user_id:            userId,
+      bank_account_id:    acctIdMap[tx.stagingBankId] ?? null,
+      date:               tx.date,
+      description:        tx.description,
+      amount:             tx.amount,
+      matched_expense_id: annualMatch ?? monthlyMatch ?? null,
+      ignored:  tx.ignored ?? false,
+      applied:  false,
+    }
+  })
 
   // Build income item lookup: normalise description → income item id
   // so income deposits get matched to income items, not left unmatched
@@ -225,19 +245,20 @@ export async function seedFromTransactions(userId, {
     if (txErr) return { error: txErr }
   }
 
-  // Apply all matched transactions to the budget immediately —
-  // so Reconcile opens clean after onboarding
-  await supabase.rpc('apply_transactions_to_budget', { p_user_id: userId })
-
-  // 5. Insert payee rules — resolve temp category ids
+  // 5. Insert payee rules — resolve temp category ids.
+  // A pattern that was flagged yearly gets a rule pointing at its OWN
+  // annual item; everything else points at the category's monthly item.
   if (payeeRuleMap && Object.keys(payeeRuleMap).length) {
     const ruleRows = Object.entries(payeeRuleMap)
-      .map(([pattern, catId]) => [pattern, resolvecat(catId)])
-      .filter(([, catId]) => catToExpItemId[catId])
-      .map(([pattern, catId]) => ({
+      .map(([pattern, catId]) => {
+        const itemId = annualPatternToItemId[pattern] ?? catToMonthlyItemId[resolvecat(catId)]
+        return { pattern, itemId }
+      })
+      .filter(({ itemId }) => itemId)
+      .map(({ pattern, itemId }) => ({
         user_id:         userId,
         pattern,
-        expense_item_id: catToExpItemId[catId],
+        expense_item_id: itemId,
         hit_count:       1,
       }))
     if (ruleRows.length) {
@@ -269,11 +290,21 @@ export async function seedFromTransactions(userId, {
     }
   }
 
-  // 6. Create the current monthly period and write period_items with real values
+  // 6. Create the current monthly period and write period_items with
+  //    BUDGETED values only (actual left at 0 — see seedCurrentPeriodWithValues).
+  //    This MUST run before apply_transactions_to_budget: the upsert here
+  //    replaces the whole row, so if it ran after apply it would wipe out
+  //    the real actuals apply had just computed.
   const { error: periodErr } = await seedCurrentPeriodWithValues(userId, incData, expData, resolvedExpenseRows, incomeRows)
   if (periodErr) return { error: periodErr }
 
-  // 7. Seed sample goals
+  // 7. NOW apply all matched transactions to the budget — this is the ONLY
+  //    place actuals get written, added on top of the budgeted-only rows
+  //    from step 6, correctly split across whichever month/year each
+  //    transaction's own date falls in.
+  await supabase.rpc('apply_transactions_to_budget', { p_user_id: userId })
+
+  // 8. Seed sample goals
   await seedSampleGoals(userId)
 
   return { error: null }
@@ -333,7 +364,11 @@ async function seedCurrentPeriodWithValues(userId, incData, expData, expenseRows
     })
   }
 
-  // Expenses → monthly or yearly period depending on frequency
+  // Expenses → monthly or yearly period depending on frequency.
+  // Only BUDGETED is seeded here — ACTUAL is deliberately left at 0.
+  // apply_transactions_to_budget (called right after this) adds the real,
+  // date-routed transaction amounts on top. Seeding a non-zero actual here
+  // as well would double-count every transaction.
   for (const item of expData) {
     // Match by id first (yearly items have unique label, monthly match by category)
     const sourceRow = expenseRows.find(r =>
@@ -352,7 +387,7 @@ async function seedCurrentPeriodWithValues(userId, incData, expData, expenseRows
       item_id:   item.id,
       item_type: 'expense',
       budgeted:  sourceRow?.budgeted ?? 0,
-      actual:    sourceRow?.actual   ?? 0,
+      actual:    0,
     })
   }
 
