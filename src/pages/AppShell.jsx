@@ -6,7 +6,6 @@ import MonthlyPage from './MonthlyPage'
 import AnnualPage from './AnnualPage'
 import GoalsPage from './GoalsPage'
 import CategoriesPage from './CategoriesPage'
-import ReconcilePage from './ReconcilePage'
 import TransactionsPage from './TransactionsPage'
 import SettingsPage from './SettingsPage'
 import { useBudget } from '../hooks/useBudget'
@@ -48,7 +47,6 @@ export default function AppShell() {
       case 'annual':     return <AnnualPage    budget={budget} transactions={transactions} periods={periods} />
       case 'goals':      return <GoalsPage     goalsHook={goalsHook} />
       case 'categories': return <CategoriesPage budget={budget} />
-      case 'reconcile':  return <ReconcilePage budget={budget} transactions={transactions} periods={periods} onTabChange={setActiveTab} />
       case 'transactions': return <TransactionsPage budget={budget} transactions={transactions} periods={periods} />
       case 'settings':   return <SettingsPage />
       default:           return <Dashboard     budget={budget} goalsHook={goalsHook} periods={periods} onTabChange={setActiveTab} />
