@@ -1,4 +1,7 @@
+import { useState, useEffect, useMemo } from 'react'
 import { fmt } from '../lib/format'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
 import { MonthSelector } from '../components/ui/PeriodSelector'
 import './Dashboard.css'
 
@@ -13,6 +16,44 @@ function buildDisabledNotice(disabledIncome, disabledMonthly, disabledAnnual) {
 
 export default function Dashboard({ budget, goalsHook, periods, onTabChange }) {
   const { totals, categories, monthly, annual, loading } = budget
+  const { user } = useAuth()
+
+  // ── Previous month's actuals (for Month in Review + MoM deltas) ──────────
+  const viewingMonth = periods?.viewingMonth
+  const prevMonthStart = useMemo(() => {
+    if (!viewingMonth) return null
+    const [y, m] = viewingMonth.split('-').map(Number)
+    const d = new Date(y, m - 2, 1) // JS months 0-based → previous month
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
+  }, [viewingMonth])
+
+  const prevMonthLabel = useMemo(() => {
+    if (!prevMonthStart) return ''
+    return new Date(prevMonthStart + 'T12:00:00').toLocaleDateString('en-US', { month: 'short' })
+  }, [prevMonthStart])
+
+  const [prevItems, setPrevItems] = useState(null) // [{item_id, actual, budgeted}] or null
+  useEffect(() => {
+    let alive = true
+    setPrevItems(null)
+    if (!user || !prevMonthStart) return
+    ;(async () => {
+      const { data: period } = await supabase
+        .from('budget_periods')
+        .select('id')
+        .eq('user_id', user.id).eq('period_type', 'monthly').eq('period_start', prevMonthStart)
+        .maybeSingle()
+      if (!alive) return
+      if (!period) { setPrevItems([]); return }
+      const { data } = await supabase
+        .from('period_items')
+        .select('item_id, actual, budgeted')
+        .eq('period_id', period.id)
+        .eq('item_type', 'expense')
+      if (alive) setPrevItems(data ?? [])
+    })()
+    return () => { alive = false }
+  }, [user, prevMonthStart])
 
   if (loading) {
     return <div className="loading-center"><span className="spinner" /> Loading…</div>
@@ -44,6 +85,49 @@ export default function Dashboard({ budget, goalsHook, periods, onTabChange }) {
     const pct  = bud > 0 ? Math.min(100, Math.round((act / bud) * 100)) : 0
     return { ...cat, bud, act, pct }
   }).filter(c => c.bud > 0 || c.act > 0)
+
+  // ── Month-over-month deltas per category (monthly items only, apples-to-apples) ──
+  const itemToCat = Object.fromEntries(monthly.map(i => [i.id, i.category_id]))
+  const prevActByCat = {}
+  if (prevItems?.length) {
+    for (const pi of prevItems) {
+      const catId = itemToCat[pi.item_id]
+      if (!catId) continue
+      prevActByCat[catId] = (prevActByCat[catId] || 0) + (pi.actual || 0)
+    }
+  }
+  const curActByCat = {}
+  for (const item of activeMonthly) {
+    curActByCat[item.category_id] = (curActByCat[item.category_id] || 0) + (item.actual || 0)
+  }
+  const hasPrevData = prevItems !== null && Object.keys(prevActByCat).length > 0
+  const catDeltas = {}
+  if (hasPrevData) {
+    const allCatIds = new Set([...Object.keys(curActByCat), ...Object.keys(prevActByCat)])
+    for (const id of allCatIds) {
+      catDeltas[id] = (curActByCat[id] || 0) - (prevActByCat[id] || 0)
+    }
+  }
+
+  // ── Month in Review: the good, the bad, the ugly ──
+  const catByIdName = Object.fromEntries(categories.map(c => [c.id, c]))
+  const reviewGood = catSummary
+    .filter(c => c.bud > 0 && c.act <= c.bud)
+    .sort((a, b) => (b.bud - b.act) - (a.bud - a.act))
+    .slice(0, 3)
+  const reviewBad = catSummary
+    .filter(c => c.bud > 0 && c.act > c.bud)
+    .sort((a, b) => (b.act - b.bud) - (a.act - a.bud))
+    .slice(0, 3)
+  const reviewUgly = hasPrevData
+    ? Object.entries(catDeltas)
+        .filter(([, d]) => d > 1)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([id, d]) => ({ cat: catByIdName[id], delta: d }))
+        .filter(r => r.cat)
+    : []
+  const showReview = reviewBad.length > 0 || reviewUgly.length > 0 || (hasPrevData && reviewGood.length > 0)
 
   const totalDisabled = (disabledIncome || 0) + (disabledMonthly || 0) + (disabledAnnual || 0)
   const goalColors    = ['#1a3a6b', '#1a6b3a', '#b8860b', '#4a1a6b', '#0a4a4a']
@@ -97,6 +181,61 @@ export default function Dashboard({ budget, goalsHook, periods, onTabChange }) {
         <div className="ssub">Budget: {savingsRateBudgeted}%</div>
       </div>
 
+      {/* Month in Review — the good, the bad, the ugly */}
+      {showReview && (
+        <div className="dash-section card mir-card" style={{ marginBottom: '1.5rem' }}>
+          <div className="sec-hdr">
+            <span className="sec-title">📋 Month in Review</span>
+            <span className="sec-hint">
+              {fmt(actualExpenses)} spent of {fmt(budgetedExpenses)} budgeted
+              {actualExpenses > budgetedExpenses
+                ? ` · ${fmt(actualExpenses - budgetedExpenses)} over`
+                : ` · ${fmt(budgetedExpenses - actualExpenses)} under`}
+            </span>
+          </div>
+          <div className="mir-grid">
+            <div className="mir-col">
+              <div className="mir-col-title good">✓ The Good</div>
+              {reviewGood.length === 0
+                ? <div className="mir-empty">Nothing under budget yet</div>
+                : reviewGood.map(c => (
+                  <div key={c.id} className="mir-row">
+                    <span className="cat-dot" style={{ background: c.color }} />
+                    <span className="mir-name">{c.name}</span>
+                    <span className="mir-amt v-green mono">{fmt(c.bud - c.act)} left</span>
+                  </div>
+                ))}
+            </div>
+            <div className="mir-col">
+              <div className="mir-col-title bad">⚠ The Bad</div>
+              {reviewBad.length === 0
+                ? <div className="mir-empty">Nothing over budget 🎉</div>
+                : reviewBad.map(c => (
+                  <div key={c.id} className="mir-row">
+                    <span className="cat-dot" style={{ background: c.color }} />
+                    <span className="mir-name">{c.name}</span>
+                    <span className="mir-amt v-red mono">
+                      {fmt(c.act - c.bud)} over{c.bud > 0 && ` (${Math.round((c.act / c.bud) * 100)}%)`}
+                    </span>
+                  </div>
+                ))}
+            </div>
+            <div className="mir-col">
+              <div className="mir-col-title ugly">📈 The Ugly</div>
+              {reviewUgly.length === 0
+                ? <div className="mir-empty">{hasPrevData ? `No big jumps vs ${prevMonthLabel}` : 'No prior month to compare yet'}</div>
+                : reviewUgly.map(({ cat, delta }) => (
+                  <div key={cat.id} className="mir-row">
+                    <span className="cat-dot" style={{ background: cat.color }} />
+                    <span className="mir-name">{cat.name}</span>
+                    <span className="mir-amt v-red mono">↑ {fmt(delta)} vs {prevMonthLabel}</span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Category breakdown */}
       <div className="dash-section card" style={{ marginBottom: '1.5rem' }}>
         <div className="sec-hdr">
@@ -131,6 +270,11 @@ export default function Dashboard({ budget, goalsHook, periods, onTabChange }) {
                 </div>
                 <div className="cat-pct" style={{ color: cat.pct > 100 ? 'var(--red)' : 'var(--ink3)' }}>
                   {cat.pct}% of budget
+                  {hasPrevData && catDeltas[cat.id] !== undefined && Math.abs(catDeltas[cat.id]) >= 1 && (
+                    <span className={`cat-delta ${catDeltas[cat.id] > 0 ? 'up' : 'down'}`}>
+                      {catDeltas[cat.id] > 0 ? '↑' : '↓'} {fmt(Math.abs(catDeltas[cat.id]))} vs {prevMonthLabel}
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
