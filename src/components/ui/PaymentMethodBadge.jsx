@@ -43,7 +43,7 @@ export default function PaymentMethodBadge({ bankAccountId, bankAccounts, onSele
           ))}
           {bankAccounts.length === 0 && (
             <div className="pop-item" style={{ color: '#888', fontStyle: 'italic', cursor: 'default' }}>
-              No banks yet — add one in Reconcile
+              No banks yet — add one in Transactions
             </div>
           )}
         </PopoverPortal>
