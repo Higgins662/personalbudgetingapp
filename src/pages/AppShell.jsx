@@ -1,6 +1,6 @@
-import { Component } from 'react'
+import { Component, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import Nav from '../components/layout/Nav'
+import Nav, { TABS } from '../components/layout/Nav'
 import Dashboard from './Dashboard'
 import IncomePage from './IncomePage'
 import MonthlyPage from './MonthlyPage'
@@ -45,6 +45,13 @@ export default function AppShell() {
   function setActiveTab(tab) {
     setSearchParams(tab === 'dashboard' ? {} : { tab })
   }
+
+  useEffect(() => {
+    const tabLabel = activeTab === 'settings'
+      ? 'Settings'
+      : TABS.find(t => t.id === activeTab)?.label
+    document.title = tabLabel ? `${tabLabel} · Budget` : 'Budget'
+  }, [activeTab])
 
   const periods      = usePeriods()
   const budget       = useBudget(periods)
