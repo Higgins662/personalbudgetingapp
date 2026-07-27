@@ -184,7 +184,7 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
       .map(({ likelyTransfer, matched_source, ...t }) => ({ ...t, bank_account_id: acctId, ignored: false }))
     const excludedToInsert = transfers.filter((_, i) => excludedTransfers.has(i))
       .map(({ likelyTransfer, matched_source, ...t }) => ({ ...t, bank_account_id: acctId, ignored: true }))
-    const { error } = await insertTransactions([...normalToInsert, ...transfersToInsert, ...excludedToInsert])
+    const { error, duplicatesSkipped } = await insertTransactions([...normalToInsert, ...transfersToInsert, ...excludedToInsert])
     setSaving(false)
     if (error) { setError(error.message); return }
 
@@ -202,7 +202,7 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
     const matched       = normalToInsert.filter(t => t.matched_expense_id).length
     const unmatched     = normalToInsert.filter(t => !t.matched_expense_id).length
     const unmatchedTotal = normalToInsert.filter(t => !t.matched_expense_id && t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0)
-    setImportResult({ matched, unmatched, unmatchedTotal, total: normalToInsert.length, transfersExcluded: excludedTransfers.size, transfersIncluded: transfersToInsert.length })
+    setImportResult({ matched, unmatched, unmatchedTotal, total: normalToInsert.length, transfersExcluded: excludedTransfers.size, transfersIncluded: transfersToInsert.length, duplicatesSkipped })
     setStage('done')
   }
 
@@ -503,6 +503,11 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
                 {importResult.transfersExcluded > 0 && (
                   <div className="alert alert-info" style={{ fontSize: '.83rem', marginBottom: '1rem' }}>
                     🔄 <strong>{importResult.transfersExcluded}</strong> transfer{importResult.transfersExcluded === 1 ? '' : 's'} excluded and saved as ignored.
+                  </div>
+                )}
+                {importResult.duplicatesSkipped > 0 && (
+                  <div className="alert alert-info" style={{ fontSize: '.83rem', marginBottom: '1rem' }}>
+                    ⏭ <strong>{importResult.duplicatesSkipped}</strong> duplicate transaction{importResult.duplicatesSkipped === 1 ? '' : 's'} already existed and {importResult.duplicatesSkipped === 1 ? 'was' : 'were'} skipped.
                   </div>
                 )}
                 {importResult.unmatched > 0 && (
