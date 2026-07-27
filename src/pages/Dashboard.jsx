@@ -33,6 +33,7 @@ export default function Dashboard({ budget, goalsHook, periods, onTabChange }) {
   }, [prevMonthStart])
 
   const [prevItems, setPrevItems] = useState(null) // [{item_id, actual, budgeted}] or null
+  const [closeoutDismissed, setCloseoutDismissed] = useState(false)
   useEffect(() => {
     let alive = true
     setPrevItems(null)
@@ -129,6 +130,20 @@ export default function Dashboard({ budget, goalsHook, periods, onTabChange }) {
     : []
   const showReview = reviewBad.length > 0 || reviewUgly.length > 0 || (hasPrevData && reviewGood.length > 0)
 
+  // ── Guided month closeout: fresh month + prior month exists ──
+  const today = new Date()
+  const dayOfMonth = today.getDate()
+  const priorMonthExists = periods?.availableMonths?.includes(prevMonthStart)
+  const showCloseout = !closeoutDismissed
+    && periods?.isViewingCurrentMonth
+    && dayOfMonth <= 10
+    && priorMonthExists
+    && prevMonthStart != null
+
+  const prevMonthFullLabel = prevMonthStart
+    ? new Date(prevMonthStart + 'T12:00:00').toLocaleDateString('en-US', { month: 'long' })
+    : ''
+
   const totalDisabled = (disabledIncome || 0) + (disabledMonthly || 0) + (disabledAnnual || 0)
   const goalColors    = ['#1a3a6b', '#1a6b3a', '#b8860b', '#4a1a6b', '#0a4a4a']
 
@@ -138,6 +153,23 @@ export default function Dashboard({ budget, goalsHook, periods, onTabChange }) {
   return (
     <div className="fadein">
       {periods && <MonthSelector periods={periods} />}
+
+      {/* Guided month closeout */}
+      {showCloseout && (
+        <div className="closeout-banner">
+          <div className="closeout-text">
+            📬 <strong>New month!</strong> Close out {prevMonthFullLabel}: import its statement,
+            review any unmatched charges, and your Month in Review will update below.
+          </div>
+          <div className="closeout-actions">
+            <button className="btn btn-p" style={{ fontSize: '.8rem' }}
+              onClick={() => onTabChange?.('transactions')}>
+              ⬆ Import {prevMonthFullLabel}'s statement
+            </button>
+            <button className="closeout-dismiss" onClick={() => setCloseoutDismissed(true)} title="Dismiss">✕</button>
+          </div>
+        </div>
+      )}
 
       {periods && !periods.isViewingCurrentMonth && (
         <div className="alert alert-info" style={{ marginBottom: '1.25rem', fontSize: '.83rem' }}>
@@ -151,8 +183,8 @@ export default function Dashboard({ budget, goalsHook, periods, onTabChange }) {
           <div className="dash-empty-icon">📊</div>
           <div className="dash-empty-body">
             <strong>Your actuals are all zero.</strong> Import a bank statement
-            in <button className="dash-link-btn" onClick={() => onTabChange?.('reconcile')}>
-              🔄 Reconcile
+            in <button className="dash-link-btn" onClick={() => onTabChange?.('transactions')}>
+              🧾 Transactions
             </button> and apply it to see real numbers here. Or click any
             <strong> Actual</strong> amount in the Income or Expenses tabs to enter it manually.
           </div>
