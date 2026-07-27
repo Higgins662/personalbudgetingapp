@@ -23,7 +23,7 @@ export default function IncomePage({ budget, transactions, periods }) {
 
       {bankAccounts.length === 0 && (
         <div className="alert alert-info" style={{ marginBottom: '1rem', fontSize: '.83rem' }}>
-          Add a bank account in <strong>Reconcile</strong> to track which account each income source deposits into.
+          Add a bank account in <strong>Transactions</strong> to track which account each income source deposits into.
         </div>
       )}
 
