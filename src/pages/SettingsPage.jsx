@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { useReset } from '../hooks/useReset'
+import { useUserPreferences } from '../hooks/useUserPreferences'
 import { toCSV, downloadZip } from '../lib/exportUtils'
 import './SettingsPage.css'
 
 export default function SettingsPage() {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
+  const { sharePatterns, loading: prefsLoading, setSharePayeePatterns } = useUserPreferences()
 
   const [exporting,  setExporting]  = useState(false)
   const [exportDone, setExportDone] = useState(false)
@@ -107,15 +109,20 @@ export default function SettingsPage() {
             <div className="settings-sublabel">
               When you assign a transaction to a category, an anonymized version of that
               merchant → category pairing is shared with all users to improve automatic
-              matching. No personal data is included.
+              matching. No personal data — amounts, dates, or account info — is included.
               See our <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.
             </div>
           </div>
-          <span style={{ fontSize: '.8rem', color: 'var(--green)', fontWeight: 600 }}>Enabled</span>
+          <label className="settings-toggle">
+            <input
+              type="checkbox"
+              checked={sharePatterns}
+              disabled={prefsLoading}
+              onChange={e => setSharePayeePatterns(e.target.checked)}
+            />
+            <span>{sharePatterns ? 'Enabled' : 'Disabled'}</span>
+          </label>
         </div>
-        <p style={{ fontSize: '.78rem', color: 'var(--ink3)', marginTop: '.5rem' }}>
-          To opt out, contact privacy@[your-domain.com]. Full opt-out controls coming soon.
-        </p>
       </div>
 
       {/* Data export */}
