@@ -122,3 +122,33 @@
 }
 .cat-delta.up   { color: var(--red);   background: #fdeaea; }
 .cat-delta.down { color: var(--green); background: #eaf7ee; }
+
+/* ── Guided month closeout banner ── */
+.closeout-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  flex-wrap: wrap;
+  background: #eef4ff;
+  border: 1px solid #c5d6f5;
+  border-radius: var(--radius-sm);
+  padding: .7rem 1rem;
+  margin-bottom: 1.25rem;
+  font-size: .85rem;
+  color: var(--ink2);
+}
+.closeout-actions {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+.closeout-dismiss {
+  background: none;
+  border: none;
+  color: var(--ink3);
+  cursor: pointer;
+  font-size: .9rem;
+  padding: .2rem .4rem;
+}
+.closeout-dismiss:hover { color: var(--ink); }
