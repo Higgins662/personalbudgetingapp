@@ -1,0 +1,13 @@
+/* ── Reports ── */
+.reports-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.reports-table th.sortable:hover { color: var(--ink); }
+.reports-table td { vertical-align: middle; }
+.rep-pct {
+  font-size: .72rem;
+  color: var(--ink3);
+}
+.trend-spark { display: block; margin-left: auto; }
