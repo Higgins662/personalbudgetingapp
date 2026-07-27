@@ -86,13 +86,15 @@ export function usePeriods() {
     setAvailableMonths(months.map(p => p.period_start))
     setAvailableYears(years.map(p => p.period_start))
 
-    const curMonth = months.find(p => p.period_start === thisMonth)
-    const curYear  = years.find(p => p.period_start === thisYear)
-    setCurrentMonthPeriod(curMonth ?? null)
-    setCurrentYearPeriod(curYear ?? null)
+    // "Current" = the LATEST period. After an early rollover the newly-created
+    // future month becomes the working month, not a "past" one.
+    const curMonth = months[0] ?? null
+    const curYear  = years[0]  ?? null
+    setCurrentMonthPeriod(curMonth)
+    setCurrentYearPeriod(curYear)
 
-    setViewingMonth(thisMonth)
-    setViewingYear(thisYear)
+    setViewingMonth(curMonth?.period_start ?? thisMonth)
+    setViewingYear(curYear?.period_start ?? thisYear)
 
     setLoading(false)
   }, [user])
