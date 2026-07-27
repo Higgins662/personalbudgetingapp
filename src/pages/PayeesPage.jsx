@@ -18,7 +18,7 @@ export default function PayeesPage({ transactions: txHook }) {
           <div className="empty-state-icon">🏪</div>
           <div className="empty-state-title">No payees yet</div>
           <div className="empty-state-body">
-            Import a bank statement in the <strong>Reconcile</strong> tab to see your debit payees here.
+            Import a bank statement in the <strong>Transactions</strong> tab to see your debit payees here.
           </div>
         </div>
       </div>
