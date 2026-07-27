@@ -425,7 +425,7 @@ export default function Onboarding() {
               <div className="wiz-step-hint" style={{ marginBottom: '1.5rem' }}>
                 {hasBanks
                   ? `We imported ${txCount} transactions, built your budget from real spending, and set your actuals from day one. Your Dashboard has real numbers.`
-                  : 'Your budget is set up with 17 default categories. Head to Reconcile anytime to import a bank statement and populate your actuals.'}
+                  : 'Your budget is set up with 17 default categories. Head to Transactions anytime to import a bank statement and populate your actuals.'}
               </div>
               <div className="wiz-summary-grid" style={{ marginBottom: '1.5rem', textAlign: 'left' }}>
                 <div className="wiz-scard">
@@ -447,7 +447,7 @@ export default function Onboarding() {
                 </div>
               </div>
               <div className="alert alert-info" style={{ textAlign: 'left', fontSize: '.84rem' }}>
-                💡 At the end of each month, go to <strong>🔄 Reconcile</strong> to import
+                💡 At the end of each month, go to <strong>🧾 Transactions</strong> to import
                 your latest statement and apply it to your budget — your actuals update automatically.
               </div>
             </div>
