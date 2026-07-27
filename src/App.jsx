@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './hooks/useAuth'
 import ProtectedRoute from './components/layout/ProtectedRoute'
+import RequireBudget from './components/layout/RequireBudget'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Onboarding from './pages/Onboarding'
@@ -19,7 +20,7 @@ export default function App() {
           } />
 
           <Route path="/dashboard" element={
-            <ProtectedRoute><AppShell /></ProtectedRoute>
+            <ProtectedRoute><RequireBudget><AppShell /></RequireBudget></ProtectedRoute>
           } />
 
           {/* Catch-all → dashboard (or login via ProtectedRoute) */}
