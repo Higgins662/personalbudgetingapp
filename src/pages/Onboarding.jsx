@@ -162,8 +162,11 @@ export default function Onboarding() {
       .filter(([, s]) => s.checked)
       .map(([, s], i) => ({
         label:    s.label || 'Income',
-        budgeted: Math.floor((s.total || 0) / months),
-        actual:   Math.floor((s.total || 0) / months),
+        // Post the actual observed total from the statement — don't average
+        // it down by dividing by months. The user can adjust it on the
+        // Income tab once onboarding is complete.
+        budgeted: Math.round(s.total || 0),
+        actual:   Math.round(s.total || 0),
         note:     '',
         sort_order: i,
       }))
