@@ -77,3 +77,48 @@
   .dash-section { padding: 1.1rem; }
   .dash-empty-banner { flex-direction: column; gap: .4rem; }
 }
+
+/* ── Month in Review ── */
+.mir-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1.25rem;
+}
+.mir-col-title {
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .03em;
+  margin-bottom: .55rem;
+}
+.mir-col-title.good { color: var(--green); }
+.mir-col-title.bad  { color: var(--red); }
+.mir-col-title.ugly { color: #b8860b; }
+.mir-row {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  padding: .3rem 0;
+  font-size: .82rem;
+  border-bottom: 1px solid var(--border);
+}
+.mir-row:last-child { border-bottom: none; }
+.mir-name {
+  flex: 1;
+  color: var(--ink2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mir-amt   { font-size: .78rem; white-space: nowrap; }
+.mir-empty { font-size: .78rem; color: var(--ink3); font-style: italic; padding: .3rem 0; }
+
+/* ── MoM delta chip on category rows ── */
+.cat-delta {
+  margin-left: .5rem;
+  font-size: .72rem;
+  font-weight: 600;
+  padding: .05rem .45rem;
+  border-radius: 999px;
+}
+.cat-delta.up   { color: var(--red);   background: #fdeaea; }
+.cat-delta.down { color: var(--green); background: #eaf7ee; }
