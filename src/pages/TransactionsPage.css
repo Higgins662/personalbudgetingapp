@@ -145,3 +145,94 @@
   color: var(--ink);
   border-color: var(--ink3);
 }
+
+/* ── Status chips ── */
+.tx-chips {
+  display: flex;
+  gap: .4rem;
+  flex-wrap: wrap;
+  margin-bottom: .85rem;
+}
+.tx-chip {
+  font-family: 'Outfit', sans-serif;
+  font-size: .78rem;
+  font-weight: 600;
+  padding: .3rem .8rem;
+  border-radius: 999px;
+  border: 1px solid var(--border2);
+  background: var(--card);
+  color: var(--ink3);
+  cursor: pointer;
+  transition: all .15s;
+}
+.tx-chip:hover  { border-color: var(--ink3); color: var(--ink); }
+.tx-chip.active { background: var(--ink); color: #e8d58a; border-color: var(--ink); }
+
+/* ── Needs-review banner ── */
+.tx-review-banner {
+  background: #fff8e8;
+  border: 1px solid #e8d8a8;
+  border-radius: var(--radius-sm);
+  padding: .6rem .9rem;
+  font-size: .84rem;
+  color: var(--ink2);
+  margin-bottom: .85rem;
+  cursor: pointer;
+  transition: background .15s;
+}
+.tx-review-banner:hover { background: #fdf2d8; }
+
+/* ── Batch apply bar ── */
+.tx-batch-apply {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  flex-wrap: wrap;
+  background: var(--card2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: .55rem .9rem;
+  font-size: .84rem;
+  color: var(--ink2);
+  margin-bottom: .85rem;
+}
+
+/* ── Overflow menu ── */
+.tx-menu-wrap { position: relative; }
+.tx-menu-btn  { font-size: 1rem; line-height: 1; padding: .35rem .6rem; }
+.tx-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  background: var(--card);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  z-index: 30;
+  min-width: 230px;
+  overflow: hidden;
+}
+.tx-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  font-family: 'Outfit', sans-serif;
+  font-size: .82rem;
+  color: var(--ink2);
+  padding: .6rem .85rem;
+  cursor: pointer;
+}
+.tx-menu button:hover { background: var(--card2); color: var(--ink); }
+
+/* ── Yearly checkbox + status cell ── */
+.tx-yearly-label { display: inline-flex; cursor: pointer; }
+.tx-yearly-label input { width: 15px; height: 15px; cursor: pointer; accent-color: #3a5ab8; }
+.tx-status-cell {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
