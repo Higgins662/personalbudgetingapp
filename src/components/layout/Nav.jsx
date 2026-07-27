@@ -9,7 +9,6 @@ const TABS = [
   { id: 'annual',     label: 'Yearly Subscriptions',   icon: '🔁' },
   { id: 'goals',      label: 'Savings Goals',          icon: '🎯' },
   { id: 'categories', label: 'Categories & Colors',    icon: '🏷️' },
-  { id: 'reconcile',  label: 'Reconcile',              icon: '🔄' },
   { id: 'transactions', label: 'Transactions',           icon: '🧾' },
 ]
 
