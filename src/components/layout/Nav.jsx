@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import './Nav.css'
 
-const TABS = [
+export const TABS = [
   { id: 'dashboard',    label: 'Dashboard',              icon: '📊' },
   { id: 'income',       label: 'Income',                 icon: '💵' },
   { id: 'monthly',      label: 'Monthly Expenses',       icon: '📅' },
