@@ -158,18 +158,31 @@ export default function Onboarding() {
     const categoryTotals = collapseToCategories(taggedGroups, categories)
     const budgets        = calculateBudgets(categoryTotals, months, savingsPct, budgetOverrides, categories)
 
+    const creditTx = allTransactions.filter(t => t.amount > 0)
+    const now = new Date()
+    const curMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+
     const incomeRows = Object.entries(incomeSelections)
       .filter(([, s]) => s.checked)
-      .map(([, s], i) => ({
-        label:    s.label || 'Income',
-        // Post the actual observed total from the statement — don't average
-        // it down by dividing by months. The user can adjust it on the
-        // Income tab once onboarding is complete.
-        budgeted: Math.round(s.total || 0),
-        actual:   Math.round(s.total || 0),
-        note:     '',
-        sort_order: i,
-      }))
+      .map(([key, s], i) => {
+        // budgeted: an ongoing average target, same treatment as expense budgets
+        const budgeted = Math.round((s.total || 0) / months)
+        // actual: only real deposits dated THIS month — 0 if none happened
+        // yet, exactly like expenses (which only show real dated spending).
+        // Averaging or posting a multi-month total here would make income
+        // look inflated relative to expenses and skew net cash flow.
+        const groupTx = creditTx.filter(tx => normalizePattern(tx.description) === key)
+        const thisMonthTotal = groupTx
+          .filter(tx => tx.date?.slice(0, 7) === curMonthPrefix)
+          .reduce((sum, tx) => sum + tx.amount, 0)
+        return {
+          label:    s.label || 'Income',
+          budgeted,
+          actual:   Math.round(thisMonthTotal),
+          note:     '',
+          sort_order: i,
+        }
+      })
     if (!incomeRows.length) {
       incomeRows.push({ label: 'Income', budgeted: 0, actual: 0, note: '', sort_order: 0 })
     }
