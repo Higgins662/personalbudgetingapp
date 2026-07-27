@@ -1,4 +1,5 @@
-import { useState, Component } from 'react'
+import { Component } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import Nav from '../components/layout/Nav'
 import Dashboard from './Dashboard'
 import IncomePage from './IncomePage'
@@ -36,7 +37,15 @@ class TabErrorBoundary extends Component {
 }
 
 export default function AppShell() {
-  const [activeTab, setActiveTab] = useState('dashboard')
+  // Active tab lives in the URL (?tab=...) instead of local state, so every
+  // tab switch creates a real browser history entry — Back/Forward move
+  // between previously-viewed tabs instead of leaving the app entirely.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTab = searchParams.get('tab') || 'dashboard'
+  function setActiveTab(tab) {
+    setSearchParams(tab === 'dashboard' ? {} : { tab })
+  }
+
   const periods      = usePeriods()
   const budget       = useBudget(periods)
   const transactions = useTransactions()
