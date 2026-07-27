@@ -51,8 +51,50 @@ export function useTransactions() {
   }
 
   // ── Transactions ───────────────────────────────────────────────────────────
+  /**
+   * Insert new transactions, skipping any that already exist.
+   * A "duplicate" is the same bank account + date + amount + description —
+   * this catches re-importing the same statement, or two exports whose
+   * date ranges overlap (the normal way people export bank history).
+   * Returns { data, error, duplicatesSkipped }.
+   */
   async function insertTransactions(rows) {
-    const tagged = rows.map(r => ({ ...r, user_id: user.id }))
+    if (!rows.length) return { data: [], error: null, duplicatesSkipped: 0 }
+
+    const sig = r => `${r.bank_account_id ?? ''}|${r.date}|${r.amount}|${(r.description || '').trim().toUpperCase()}`
+
+    // Only fetch existing rows in the relevant bank accounts + date range —
+    // keeps this cheap even for users with years of transaction history.
+    const bankIds = [...new Set(rows.map(r => r.bank_account_id).filter(Boolean))]
+    const dates   = rows.map(r => r.date).filter(Boolean)
+    let existingSigs = new Set()
+
+    if (bankIds.length && dates.length) {
+      const minDate = dates.reduce((a, b) => (a < b ? a : b))
+      const maxDate = dates.reduce((a, b) => (a > b ? a : b))
+      const { data: existing } = await supabase
+        .from('transactions')
+        .select('bank_account_id, date, amount, description')
+        .eq('user_id', user.id)
+        .in('bank_account_id', bankIds)
+        .gte('date', minDate)
+        .lte('date', maxDate)
+      existingSigs = new Set((existing ?? []).map(sig))
+    }
+
+    // Filter out rows already in the DB, and dedupe within this batch itself
+    // (in case the same line appears twice in the uploaded CSV)
+    const seenInBatch = new Set()
+    const deduped = []
+    let duplicatesSkipped = 0
+    for (const r of rows) {
+      const s = sig(r)
+      if (existingSigs.has(s) || seenInBatch.has(s)) { duplicatesSkipped++; continue }
+      seenInBatch.add(s)
+      deduped.push(r)
+    }
+
+    const tagged = deduped.map(r => ({ ...r, user_id: user.id }))
     const BATCH_SIZE = 500
     const allData = []
     for (let i = 0; i < tagged.length; i += BATCH_SIZE) {
@@ -61,11 +103,11 @@ export function useTransactions() {
         .from('transactions')
         .insert(batch)
         .select()
-      if (error) return { data: null, error }
+      if (error) return { data: null, error, duplicatesSkipped }
       allData.push(...(data ?? []))
     }
     setTransactions(prev => [...allData, ...prev])
-    return { data: allData, error: null }
+    return { data: allData, error: null, duplicatesSkipped }
   }
 
   async function updateTransaction(id, fields) {
