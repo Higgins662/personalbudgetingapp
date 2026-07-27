@@ -4,13 +4,13 @@ import './Nav.css'
 
 const TABS = [
   { id: 'dashboard',    label: 'Dashboard',              icon: '📊' },
-  { id: 'transactions', label: 'Transactions',           icon: '🧾' },
-  { id: 'reports',      label: 'Reports',                icon: '📈' },
   { id: 'income',       label: 'Income',                 icon: '💵' },
   { id: 'monthly',      label: 'Monthly Expenses',       icon: '📅' },
   { id: 'annual',       label: 'Yearly Subscriptions',   icon: '🔁' },
   { id: 'goals',        label: 'Savings Goals',          icon: '🎯' },
   { id: 'categories',   label: 'Categories & Colors',    icon: '🏷️' },
+  { id: 'transactions', label: 'Transactions',           icon: '🧾' },
+  { id: 'reports',      label: 'Reports',                icon: '📈' },
 ]
 
 export default function Nav({ activeTab, onTabChange }) {
