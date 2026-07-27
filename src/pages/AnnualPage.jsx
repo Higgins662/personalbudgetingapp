@@ -29,7 +29,7 @@ export default function AnnualPage({ budget, transactions, periods }) {
 
       {bankAccounts.length === 0 && (
         <div className="alert alert-info" style={{ marginBottom: '1rem', fontSize: '.83rem' }}>
-          Add a bank account in <strong>Reconcile</strong> to assign payment methods to your annual expenses.
+          Add a bank account in <strong>Transactions</strong> to assign payment methods to your annual expenses.
         </div>
       )}
 
