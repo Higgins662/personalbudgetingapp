@@ -15,17 +15,19 @@ import { useGoals } from '../hooks/useGoals'
 import { usePeriods } from '../hooks/usePeriods'
 
 class TabErrorBoundary extends Component {
-  constructor(props) { super(props); this.state = { error: null } }
-  static getDerivedStateFromError(e) { return { error: e } }
+  constructor(props) { super(props); this.state = { hasError: false } }
+  static getDerivedStateFromError() { return { hasError: true } }
   componentDidCatch(e, info) { console.error('Tab render error:', e, info) }
   render() {
-    if (this.state.error) {
+    if (this.state.hasError) {
       return (
-        <div style={{ padding: '2rem', color: 'var(--red)' }}>
-          <strong>Something went wrong on this page.</strong>
-          <pre style={{ marginTop: '1rem', fontSize: '.8rem', whiteSpace: 'pre-wrap' }}>
-            {this.state.error.message}
-          </pre>
+        <div className="empty-state">
+          <div className="empty-state-icon">⚠️</div>
+          <div className="empty-state-title">Something went wrong on this page</div>
+          <div className="empty-state-body">
+            Try refreshing the page. If this keeps happening, use the thumbs-down
+            button to send feedback so we can take a look.
+          </div>
         </div>
       )
     }
