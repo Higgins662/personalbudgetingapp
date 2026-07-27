@@ -10,6 +10,7 @@ const TABS = [
   { id: 'goals',      label: 'Savings Goals',          icon: '🎯' },
   { id: 'categories', label: 'Categories & Colors',    icon: '🏷️' },
   { id: 'transactions', label: 'Transactions',           icon: '🧾' },
+  { id: 'reports',    label: 'Reports',                icon: '📈' },
 ]
 
 export default function Nav({ activeTab, onTabChange }) {
