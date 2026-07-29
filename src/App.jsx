@@ -4,6 +4,8 @@ import ProtectedRoute from './components/layout/ProtectedRoute'
 import RequireBudget from './components/layout/RequireBudget'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import Onboarding from './pages/Onboarding'
 import AppShell from './pages/AppShell'
 
@@ -12,8 +14,16 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/login"  element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
+          <Route path="/login"           element={<Login />} />
+          <Route path="/signup"          element={<Signup />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+
+          {/* The emailed recovery link lands here — Supabase auto-exchanges
+              its token into a session, so this needs to be signed-in-gated
+              the same way the rest of the app is. */}
+          <Route path="/reset-password" element={
+            <ProtectedRoute><ResetPassword /></ProtectedRoute>
+          } />
 
           <Route path="/onboarding" element={
             <ProtectedRoute><Onboarding /></ProtectedRoute>
