@@ -8,9 +8,22 @@ import { toCSV, downloadZip } from '../lib/exportUtils'
 import './SettingsPage.css'
 
 export default function SettingsPage() {
-  const { user, signOut } = useAuth()
+  const { user, signOut, resetPasswordForEmail } = useAuth()
   const navigate = useNavigate()
   const { sharePatterns, loading: prefsLoading, setSharePayeePatterns } = useUserPreferences()
+
+  const [pwResetSending, setPwResetSending] = useState(false)
+  const [pwResetSent,    setPwResetSent]    = useState(false)
+  const [pwResetErr,     setPwResetErr]     = useState('')
+
+  async function handlePasswordReset() {
+    setPwResetSending(true)
+    setPwResetErr('')
+    const { error } = await resetPasswordForEmail(user.email)
+    setPwResetSending(false)
+    if (error) { setPwResetErr(error.message); return }
+    setPwResetSent(true)
+  }
 
   const [exporting,  setExporting]  = useState(false)
   const [exportDone, setExportDone] = useState(false)
@@ -97,6 +110,32 @@ export default function SettingsPage() {
           <span className="settings-value mono" style={{ fontSize: '.75rem', color: 'var(--ink3)', wordBreak: 'break-all' }}>
             {user?.id}
           </span>
+        </div>
+      </div>
+
+      {/* Password reset */}
+      <div className="settings-section card">
+        <div className="settings-section-title">Password</div>
+        {pwResetErr && <div className="alert alert-error" style={{ marginBottom: '.75rem' }}>{pwResetErr}</div>}
+        <div className="settings-row">
+          <div>
+            <div className="settings-label">Change your password</div>
+            <div className="settings-sublabel">
+              {pwResetSent
+                ? <>We sent a link to <strong>{user?.email}</strong> — click it to set a new password.</>
+                : "We'll email you a secure link to set a new password."}
+            </div>
+          </div>
+          <button
+            className="btn btn-g"
+            style={{ fontSize: '.8rem' }}
+            onClick={handlePasswordReset}
+            disabled={pwResetSending || pwResetSent}
+          >
+            {pwResetSending
+              ? <><span className="spinner" style={{ width: 14, height: 14 }} /> Sending…</>
+              : pwResetSent ? 'Email sent ✓' : 'Send reset link'}
+          </button>
         </div>
       </div>
 
