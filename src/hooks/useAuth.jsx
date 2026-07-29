@@ -31,7 +31,22 @@ export function AuthProvider({ children }) {
 
   const signOut = () => supabase.auth.signOut()
 
-  const value = { session, user, signUp, signIn, signOut, loading: session === undefined }
+  // Sends an email with a link back to /reset-password containing a
+  // recovery token. Supabase auto-exchanges that token into a session
+  // when the link is opened, which is what lets updatePassword work.
+  const resetPasswordForEmail = (email) =>
+    supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    })
+
+  const updatePassword = (password) =>
+    supabase.auth.updateUser({ password })
+
+  const value = {
+    session, user, signUp, signIn, signOut,
+    resetPasswordForEmail, updatePassword,
+    loading: session === undefined,
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
