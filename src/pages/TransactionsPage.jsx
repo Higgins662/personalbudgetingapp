@@ -294,6 +294,15 @@ export default function TransactionsPage({ budget, transactions: txHook, periods
       ) : (
         <div className="tbl-wrap">
           <table className="tx-table">
+            <colgroup>
+              <col style={{ width: '8%' }} />
+              <col style={{ width: '22%' }} />
+              <col style={{ width: '9%' }} />
+              <col style={{ width: '8%' }} />
+              <col style={{ width: '28%' }} />
+              <col style={{ width: '7%' }} />
+              <col style={{ width: '18%' }} />
+            </colgroup>
             <thead>
               <tr>
                 <th>Date</th>

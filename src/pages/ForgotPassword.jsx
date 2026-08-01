@@ -43,7 +43,7 @@ export default function ForgotPassword() {
   return (
     <div className="auth-page">
       <div className="auth-card fadein">
-        <div className="auth-brand">Budget</div>
+        <img src="/brand/veravo-wordmark-primary.svg" alt="Veravo" className="auth-logo" />
         <div className="auth-subtitle">Reset your password</div>
         <p style={{ color: 'var(--ink3)', fontSize: '.85rem', marginTop: '-.5rem', marginBottom: '1.2rem' }}>
           Enter the email on your account and we'll send you a link to set a new password.

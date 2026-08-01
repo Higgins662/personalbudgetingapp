@@ -219,8 +219,8 @@
 
 /* ── Grouped expense select ── */
 .grouped-expense-select {
-  min-width: 200px;
-  max-width: 100%;
+  width: 100%;
+  min-width: 0;
   font-size: .82rem;
 }
 
@@ -288,7 +288,7 @@
   cursor: pointer;
   padding: .3rem .5rem;
   border-radius: 4px;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
 }
 .transfer-panel-toggle:hover { color: var(--ink); background: #f5eedc; }
 
@@ -370,7 +370,7 @@
 .rec-startover-link {
   background: none;
   border: none;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: .78rem;
   color: var(--ink3);
   cursor: pointer;

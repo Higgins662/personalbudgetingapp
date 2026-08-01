@@ -50,7 +50,7 @@ export default function AppShell() {
     const tabLabel = activeTab === 'settings'
       ? 'Settings'
       : TABS.find(t => t.id === activeTab)?.label
-    document.title = tabLabel ? `${tabLabel} · Budget` : 'Budget'
+    document.title = tabLabel ? `${tabLabel} · Veravo` : 'Veravo'
   }, [activeTab])
 
   const periods      = usePeriods()

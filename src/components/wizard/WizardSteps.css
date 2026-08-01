@@ -51,7 +51,7 @@
 
 .wiz-income-label-input {
   width: 100%;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: .88rem;
   font-weight: 600;
   color: var(--ink);
@@ -185,7 +185,7 @@
 .wiz-cat-chip {
   padding: .28rem .65rem;
   border-radius: var(--radius-sm);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: .75rem;
   font-weight: 600;
   cursor: pointer;
@@ -211,7 +211,7 @@
   padding: .45rem .65rem;
   border: 1px solid var(--border2);
   border-radius: var(--radius-sm);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: .875rem;
   outline: none;
   background: var(--card);

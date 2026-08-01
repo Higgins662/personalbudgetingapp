@@ -71,7 +71,7 @@ export default function Nav({ activeTab, onTabChange }) {
   return (
     <>
       <nav className="nav">
-        <span className="nav-brand">Budget</span>
+        <img src="/brand/veravo-wordmark-reversed.svg" alt="Veravo" className="nav-brand" />
 
         {/* Desktop: horizontal tab bar */}
         <div className="nav-tabs" role="tablist">
@@ -135,7 +135,7 @@ export default function Nav({ activeTab, onTabChange }) {
       <div className={`drawer${drawerOpen ? ' drawer-open' : ''}`} role="dialog" aria-label="Navigation">
         {/* Drawer header */}
         <div className="drawer-header">
-          <span className="drawer-brand">💵 Budget</span>
+          <img src="/brand/veravo-wordmark-reversed.svg" alt="Veravo" className="drawer-brand" />
           <button className="drawer-close" onClick={closeDrawer} aria-label="Close menu">✕</button>
         </div>
 

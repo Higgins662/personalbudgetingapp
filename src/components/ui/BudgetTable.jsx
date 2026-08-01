@@ -170,7 +170,7 @@ export default function BudgetTable({
           <tfoot>
             <tr>
               <td />
-              <td colSpan={(showLabel ? 1 : 0) + (showCategory ? 1 : 0) + 1}>
+              <td colSpan={(showLabel ? 1 : 0) + (showCategory ? 1 : 0)}>
                 Total
                 {rows.some(r => r.enabled === false) && (
                   <span className="disabled-banner">

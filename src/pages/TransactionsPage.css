@@ -13,7 +13,7 @@
   padding: .5rem .75rem;
   border: 1px solid var(--border2);
   border-radius: var(--radius-sm);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: .875rem;
   background: var(--card);
   color: var(--ink);
@@ -26,7 +26,7 @@
   padding: .5rem .65rem;
   border: 1px solid var(--border2);
   border-radius: var(--radius-sm);
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: .82rem;
   background: var(--card);
   color: var(--ink);
@@ -37,17 +37,17 @@
 .tx-filters select:focus { border-color: var(--blue); }
 
 /* ── Table ── */
-.tx-table { width: 100%; }
+.tx-table { width: 100%; table-layout: fixed; }
 
 .tx-date { font-size: .8rem; color: var(--ink3); white-space: nowrap; }
-.tx-desc { font-size: .875rem; max-width: 240px; }
-.tx-acct { font-size: .78rem; color: var(--ink3); white-space: nowrap; }
+.tx-desc { font-size: .875rem; overflow-wrap: break-word; }
+.tx-acct { font-size: .78rem; color: var(--ink3); overflow-wrap: break-word; }
 
 .tx-cat {
   display: flex;
   flex-direction: column;
   gap: .2rem;
-  min-width: 160px;
+  min-width: 0;
 }
 .tx-cat-name {
   font-size: .7rem;
@@ -82,7 +82,7 @@
 .tx-payee-toggle {
   background: none;
   border: none;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: .82rem;
   font-weight: 600;
   color: var(--ink3);
@@ -108,8 +108,7 @@
   .tx-filters { gap: .4rem; }
   .tx-search  { min-width: 100%; }
   .tx-acct    { display: none; }
-  .tx-desc    { max-width: 140px; font-size: .8rem; }
-  .tx-cat     { min-width: 120px; }
+  .tx-desc    { font-size: .8rem; }
 }
 
 /* Income badge — shown instead of dropdown for positive transactions */
@@ -154,7 +153,7 @@
   margin-bottom: .85rem;
 }
 .tx-chip {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: .78rem;
   font-weight: 600;
   padding: .3rem .8rem;
@@ -219,7 +218,7 @@
   text-align: left;
   background: none;
   border: none;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: .82rem;
   color: var(--ink2);
   padding: .6rem .85rem;

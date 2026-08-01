@@ -1,0 +1,63 @@
+/*
+  Veravo — Design Tokens
+  Import this file globally (e.g. in your root layout / index.css)
+  before any component styles that reference these variables.
+*/
+
+:root {
+  /* ---- Color ---- */
+  --veravo-ink: #12312B;       /* primary text, primary wordmark, dark surfaces */
+  --veravo-verdant: #2FBF71;   /* "true" moment only — verified states, success, celebration. Do not use as a general accent. */
+  --veravo-paper: #FAF8F3;     /* app background, light surfaces */
+  --veravo-graphite: #37413E;  /* body copy on paper */
+  --veravo-hairline: #E3DFD5;  /* borders, dividers */
+  --veravo-white: #FFFFFF;
+
+  /* Semantic aliases — use these in components, not the raw color names above */
+  --color-bg: var(--veravo-paper);
+  --color-bg-inverse: var(--veravo-ink);
+  --color-text: var(--veravo-graphite);
+  --color-text-heading: var(--veravo-ink);
+  --color-text-inverse: var(--veravo-paper);
+  --color-border: var(--veravo-hairline);
+  --color-success: var(--veravo-verdant);
+  --color-accent: var(--veravo-verdant);
+
+  /* ---- Type ---- */
+  --font-display: 'Schibsted Grotesk', sans-serif;  /* headings, wordmark, large numerals */
+  --font-body: 'Inter', sans-serif;                 /* body copy, UI labels */
+
+  --font-weight-display: 800;
+  --font-weight-heading: 700;
+  --font-weight-body: 400;
+  --font-weight-body-medium: 500;
+
+  --tracking-display: -0.03em;  /* apply to display/heading text */
+  --tracking-body: 0em;
+
+  /* ---- Radius ---- */
+  --radius-card: 14px;
+  --radius-control: 10px;
+  --radius-icon: 22.5%;   /* app-icon superellipse-style corner, use on square icon containers */
+  --radius-pill: 100px;
+
+  /* ---- Shadow ---- */
+  --shadow-card: 0 8px 24px rgba(18, 49, 43, 0.14);
+}
+
+/*
+  Usage rules for whoever (or whatever) is styling the app:
+
+  1. --veravo-verdant is reserved for TRUE / VERIFIED / SUCCESS moments only —
+     a reconciled month, a hit savings goal, a confirmed match. It is not a
+     general-purpose brand accent color. If a button or link just needs an
+     accent, default to --veravo-ink, not verdant.
+
+  2. Never use fintech blue anywhere in this product. The palette is
+     intentionally ledger-green / warm-paper, not blue, to avoid reading as
+     a generic bank app.
+
+  3. --font-display (Schibsted Grotesk) is for headings, the wordmark, and
+     large numerals (balances, totals). Body copy, labels, and table data
+     should stay in --font-body (Inter) for legibility at small sizes.
+*/

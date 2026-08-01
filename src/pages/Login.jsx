@@ -24,7 +24,7 @@ export default function Login() {
   return (
     <div className="auth-page">
       <div className="auth-card fadein">
-        <div className="auth-brand">Budget</div>
+        <img src="/brand/veravo-wordmark-primary.svg" alt="Veravo" className="auth-logo" />
         <div className="auth-subtitle">Sign in to your account</div>
 
         {error && <div className="alert alert-error">{error}</div>}

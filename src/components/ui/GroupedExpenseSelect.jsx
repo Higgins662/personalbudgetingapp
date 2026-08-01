@@ -1,9 +1,17 @@
 /**
  * GroupedExpenseSelect
  *
- * A <select> that groups expense items by category instead of showing
- * a flat list. Used in the Reconcile preview to assign unmatched
- * transactions — much easier to scan than 20+ items in a flat list.
+ * A <select> listing one flat option per category — never per payee.
+ * Yearly subscriptions each get their own dedicated expense_item behind the
+ * scenes (see annualConversion.js), but that's an implementation detail for
+ * tracking, not something the user should have to pick between here: assign
+ * a transaction to a category, then use the separate "Yearly" checkbox if it
+ * should be tracked as its own annual line.
+ *
+ * Selecting a category always targets that category's monthly item. If the
+ * transaction is currently matched to one of the category's annual items,
+ * the select still shows that category as selected (so re-picking the same
+ * category is a no-op instead of silently blanking out).
  *
  * Props:
  *   allExpenses  — [...monthly, ...annual] with category_id
@@ -43,36 +51,34 @@ export default function GroupedExpenseSelect({
     return ai - bi
   })
 
+  // The id to select when the user picks this category — prefer the
+  // monthly (non-annual) item, since that's the category's canonical line.
+  // Falls back to the first item if a category somehow has only annual ones.
+  const repIdByGroup = {}
+  // Maps every item id (monthly or annual) back to its group's rep id, so an
+  // annual match still shows its parent category as selected.
+  const repIdByItemId = {}
+  for (const [groupName, group] of sortedGroups) {
+    const monthlyItem = group.items.find(exp => exp.frequency !== 'annual')
+    const repId = monthlyItem?.id ?? group.items[0]?.id ?? ''
+    repIdByGroup[groupName] = repId
+    for (const exp of group.items) repIdByItemId[exp.id] = repId
+  }
+
+  const displayValue = repIdByItemId[value] ?? value
+
   return (
     <select
       className="cell-select grouped-expense-select"
-      value={value}
+      value={displayValue}
       onChange={e => e.target.value && onChange(e.target.value)}
     >
       <option value="" disabled>{placeholder}</option>
-      {sortedGroups.map(([groupName, group]) => {
-        const sorted = group.items.sort((a, b) => a.label.localeCompare(b.label))
-        // Single item in group — render a flat option using the category name,
-        // no optgroup wrapper needed (avoids the parent/child duplicate look)
-        if (sorted.length === 1) {
-          const exp = sorted[0]
-          return (
-            <option key={exp.id} value={exp.id}>
-              {groupName}{exp.frequency === 'annual' ? ' (yearly)' : ''}
-            </option>
-          )
-        }
-        // Multiple items in same category — use optgroup to distinguish them
-        return (
-          <optgroup key={groupName} label={groupName}>
-            {sorted.map(exp => (
-              <option key={exp.id} value={exp.id}>
-                {exp.label}{exp.frequency === 'annual' ? ' (yearly)' : ''}
-              </option>
-            ))}
-          </optgroup>
-        )
-      })}
+      {sortedGroups.map(([groupName]) => (
+        <option key={groupName} value={repIdByGroup[groupName]}>
+          {groupName}
+        </option>
+      ))}
     </select>
   )
 }

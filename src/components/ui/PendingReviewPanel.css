@@ -96,7 +96,7 @@
 .pending-recent-toggle {
   background: none;
   border: none;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: .8rem;
   font-weight: 600;
   color: var(--ink3);

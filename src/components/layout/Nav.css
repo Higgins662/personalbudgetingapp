@@ -13,10 +13,8 @@
 }
 
 .nav-brand {
-  font-family: 'DM Serif Display', serif;
-  color: #e8d58a;
-  font-size: 1.15rem;
-  white-space: nowrap;
+  height: 30px;
+  width: auto;
   flex-shrink: 0;
 }
 
@@ -57,7 +55,7 @@
   background: #2d4a5c;
   color: #e8d58a;
   border: 1.5px solid #3a5a6c;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: .88rem;
   font-weight: 700;
   cursor: pointer;
@@ -106,7 +104,7 @@
   gap: .6rem;
   width: 100%;
   padding: .65rem 1rem;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: .875rem;
   font-weight: 500;
   color: var(--ink);
@@ -191,9 +189,8 @@
 }
 
 .drawer-brand {
-  font-family: 'DM Serif Display', serif;
-  color: #e8d58a;
-  font-size: 1.2rem;
+  height: 30px;
+  width: auto;
 }
 
 .drawer-close {
@@ -237,7 +234,7 @@
   gap: .85rem;
   width: 100%;
   padding: .85rem 1.25rem;
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-body);
   font-size: 1rem;
   font-weight: 500;
   color: #8fa8c0;
@@ -301,5 +298,5 @@
 
 @media (max-width: 480px) {
   .nav { padding: 0 1rem; height: 52px; }
-  .nav-brand { font-size: 1.05rem; }
+  .nav-brand { height: 26px; }
 }

@@ -302,7 +302,10 @@ export default function Onboarding() {
       <div className="wiz-modal-page fadein">
 
         <div className="wiz-header">
-          <div className="wiz-logo">💵 Budget Setup</div>
+          <div className="wiz-header-top">
+            <div className="wiz-logo">Setup</div>
+            <img src="/brand/veravo-wordmark-reversed.svg" alt="Veravo" className="wiz-brand-mark" />
+          </div>
           <StepTrack step={step} steps={STEPS} />
         </div>
 
@@ -357,7 +360,7 @@ export default function Onboarding() {
                       </div>
                     ))}
                     <p className="wiz-csv-tip-note">
-                      Tip: exporting 2–3 months of history gives Budget a more accurate
+                      Tip: exporting 2–3 months of history gives Veravo a more accurate
                       baseline than a single month.
                     </p>
                   </div>

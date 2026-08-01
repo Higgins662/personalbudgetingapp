@@ -35,7 +35,7 @@
 }
 
 .period-label {
-  font-family: 'DM Serif Display', serif;
+  font-family: var(--font-display);
   font-size: 1.1rem;
   color: var(--ink);
   white-space: nowrap;
