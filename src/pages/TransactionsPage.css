@@ -109,6 +109,13 @@
   .tx-search  { min-width: 100%; }
   .tx-acct    { display: none; }
   .tx-desc    { font-size: .8rem; }
+
+  /* Fixed layout + percentage columns only makes sense once there's enough
+     width to honor them. Below that, let columns size to content and let
+     .tbl-wrap's horizontal scroll take over instead of overlapping text. */
+  .tx-table { table-layout: auto; }
+  .tx-desc { max-width: 200px; }
+  .tx-cat  { min-width: 150px; }
 }
 
 /* Income badge — shown instead of dropdown for positive transactions */
