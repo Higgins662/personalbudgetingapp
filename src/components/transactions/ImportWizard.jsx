@@ -13,6 +13,18 @@ import IncomeSelect from '../ui/IncomeSelect'
 import TransferPanel from '../ui/TransferPanel'
 import '../../pages/ReconcilePage.css'
 
+const NON_INCOME_REASONS = ['refund', 'non_payroll_deposit']
+
+/** True if this preview row still needs a decision — an unmatched expense,
+ *  or an income deposit not yet assigned or flagged as not-income. Skipped
+ *  rows are excluded — the user already decided what to do with those. */
+function needsAttention(tx) {
+  if (tx._skip) return false
+  return tx.amount > 0
+    ? !tx.matched_income_id && !NON_INCOME_REASONS.includes(tx.matched_source)
+    : !tx.matched_expense_id
+}
+
 export default function ImportWizard({ budget, transactions: txHook, periods, onClose }) {
   const { monthly, annual, income, categories, addIncome, loading: budgetLoading, reload: reloadBudget } = budget
   const { bankAccounts, transactions, insertTransactions, updateBankAccount, addBankAccount,
@@ -29,7 +41,9 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
   const [csvHeaders,   setCsvHeaders]   = useState([])
   const [csvRows,      setCsvRows]      = useState([])
   const [colMap,       setColMap]       = useState({ dateCol: '', descCol: '', amountCol: '', amountSign: 'negative', creditCol: '' })
-  const [preview,      setPreview]      = useState([])
+  const [preview,        setPreview]        = useState([])
+  const [previewOrder,   setPreviewOrder]   = useState([]) // display order, frozen at build time
+  const [attentionCount, setAttentionCount] = useState(0)  // how many rows led the frozen order
   const [transfers,    setTransfers]    = useState([])
   const [excludedTransfers, setExcludedTransfers] = useState(new Set())
   const [saving,       setSaving]       = useState(false)
@@ -39,6 +53,23 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
   const [applyResult,  setApplyResult]  = useState(null)
 
   const allExpenses = [...monthly, ...annual]
+
+  /** Needs-attention rows first, then everything else, each group
+   *  newest-first. Computed once when the preview is built (see
+   *  handleBuildPreview) rather than on every edit, so a row doesn't jump
+   *  to the bottom the instant the user resolves it — the list stays put
+   *  while they work through it. Handlers still address rows by their real
+   *  index into `preview`, so nothing about assignment logic changes. */
+  function sortPreviewIndices(rows) {
+    return rows
+      .map((_, i) => i)
+      .sort((a, b) => {
+        const na = needsAttention(rows[a])
+        const nb = needsAttention(rows[b])
+        if (na !== nb) return na ? -1 : 1
+        return (rows[b].date ?? '').localeCompare(rows[a].date ?? '')
+      })
+  }
 
   const transferCategoryId = useMemo(() =>
     categories.find(c => c.is_system)?.id ?? null, [categories])
@@ -138,6 +169,8 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
     const matchedExpenses = autoMatch(txNormal, allExpenses, personalRules, globalPatterns)
     const matched = matchIncomeTransactions(matchedExpenses, income)
     setPreview(matched)
+    setPreviewOrder(sortPreviewIndices(matched))
+    setAttentionCount(matched.filter(needsAttention).length)
     setStage('preview'); setError('')
   }
 
@@ -211,7 +244,6 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
       if (!t._skip && t._yearly && t.matched_expense_id) yearlyMatchByPreviewSig.set(sigOf(t), t.matched_expense_id)
     }
 
-    const NON_INCOME_REASONS = ['refund', 'non_payroll_deposit']
     const normalToInsert = preview.filter(t => !t._skip)
       .map(({ suggested_category_name, suggested_pattern, suggested_hit_count, likelyTransfer, _yearly, ...t }) =>
         ({
@@ -268,7 +300,8 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
   }
 
   function reset() {
-    setStage('bank'); setPreview([]); setTransfers([]); setExcludedTransfers(new Set())
+    setStage('bank'); setPreview([]); setPreviewOrder([]); setAttentionCount(0)
+    setTransfers([]); setExcludedTransfers(new Set())
     setCsvRows([]); setCsvHeaders([])
     setError(''); setNewAcctName(''); setSelAcct('')
     setImportResult(null); setApplyResult(null)
@@ -484,12 +517,16 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
             </div>
             <TransferPanel transfers={transfers} excluded={excludedTransfers} onExcludeAll={handleExcludeAllTransfers} onToggle={handleToggleTransfer} />
             <div className="rec-preview-list">
-              {preview.map((tx, i) => {
+              {previewOrder.map((i, pos) => {
+                const tx = preview[i]
                 const isIncome = tx.amount > 0
                 const matched      = !isIncome ? allExpenses.find(e => e.id === tx.matched_expense_id) : null
                 const matchedIncome = isIncome ? income.find(e => e.id === tx.matched_income_id) : null
+                const isFirstResolved = pos === attentionCount && attentionCount > 0 && attentionCount < previewOrder.length
                 return (
-                  <div key={i} className={`rec-tx${tx._skip ? ' rec-tx-skip' : ''}`}>
+                  <div key={i}>
+                    {isFirstResolved && <div className="rec-preview-divider">Already matched</div>}
+                    <div className={`rec-tx${tx._skip ? ' rec-tx-skip' : ''}`}>
                     <div className="rec-tx-main">
                       <div className="rec-tx-info">
                         <span className="rec-tx-date">{tx.date}</span>
@@ -560,6 +597,7 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
                         </div>
                       </>
                     )}
+                    </div>
                   </div>
                 )
               })}

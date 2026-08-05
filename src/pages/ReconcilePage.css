@@ -113,6 +113,17 @@
   background: var(--card);
 }
 
+.rec-preview-divider {
+  padding: .4rem .85rem;
+  font-size: .7rem;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  background: var(--card2);
+  border-bottom: 1px solid var(--border);
+}
+
 .rec-tx {
   border-bottom: 1px solid var(--border);
   padding: .6rem .85rem;
