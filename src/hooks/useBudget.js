@@ -155,7 +155,7 @@ export function useBudget(periods) {
     if (error) return { error }
     setIncome(prev => [...prev, data])
     if (periods) await periods.ensurePeriodItem(data.id, 'income', 'monthly')
-    return { error: null }
+    return { error: null, data }
   }
 
   async function addMonthly(row) {

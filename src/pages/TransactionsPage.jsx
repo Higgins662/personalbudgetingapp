@@ -9,13 +9,14 @@ import { normalizePattern } from '../lib/fuzzyMatch'
 import { isTransferOrPayment } from '../lib/transferDetection'
 import { promoteToAnnual, demoteAnnualItem } from '../lib/annualConversion'
 import GroupedExpenseSelect from '../components/ui/GroupedExpenseSelect'
+import IncomeSelect from '../components/ui/IncomeSelect'
 import ImportWizard from '../components/transactions/ImportWizard'
 import ClearMonthModal from '../components/ui/ClearMonthModal'
 import './TransactionsPage.css'
 
 export default function TransactionsPage({ budget, transactions: txHook, periods }) {
   const { user } = useAuth()
-  const { monthly, annual, categories, reload: reloadBudget } = budget
+  const { monthly, annual, income, categories, addIncome, reload: reloadBudget } = budget
   const { transactions, bankAccounts, reload: reloadTx } = txHook
   const { learnRule }  = usePayeeRules()
   const { contribute } = useGlobalPatterns()
@@ -127,6 +128,41 @@ export default function TransactionsPage({ budget, transactions: txHook, periods
     }
     setRowBusy(tx.id, false)
   }, [user, allExpenses, categories, learnRule, contribute, refreshAll])
+
+  const handleReassignIncome = useCallback(async (tx, newIncomeItemId) => {
+    setRowBusy(tx.id, true); setError('')
+    const { error } = await supabase.rpc('reassign_income_transaction', {
+      p_user_id:            user.id,
+      p_tx_id:              tx.id,
+      p_new_income_item_id: newIncomeItemId || null,
+    })
+    if (error) setError(error.message)
+    else refreshAll()
+    setRowBusy(tx.id, false)
+  }, [user, refreshAll])
+
+  const handleMarkIncomeAs = useCallback(async (tx, reason) => {
+    setRowBusy(tx.id, true); setError('')
+    if (tx.matched_income_id) {
+      await supabase.rpc('reassign_income_transaction', {
+        p_user_id: user.id, p_tx_id: tx.id, p_new_income_item_id: null,
+      })
+    }
+    const { error } = await supabase
+      .from('transactions')
+      .update({ ignored: true, matched_source: reason, applied: false })
+      .eq('id', tx.id).eq('user_id', user.id)
+    if (error) setError(error.message)
+    else refreshAll()
+    setRowBusy(tx.id, false)
+  }, [user, refreshAll])
+
+  const handleCreateIncome = useCallback(async (tx, label) => {
+    const { error, data } = await addIncome({ label })
+    if (error || !data) return null
+    await handleReassignIncome(tx, data.id)
+    return data.id
+  }, [addIncome, handleReassignIncome])
 
   const handleYearlyToggle = useCallback(async (tx, matchedItem) => {
     if (!matchedItem) return
@@ -332,10 +368,22 @@ export default function TransactionsPage({ budget, transactions: txHook, periods
 
                     {/* Category cell */}
                     <td className="tx-cat">
-                      {tx.ignored ? (
+                      {isIncome ? (
+                        rowBusy ? (
+                          <span className="spinner" style={{ width: 14, height: 14 }} />
+                        ) : (
+                          <IncomeSelect
+                            incomeItems={income}
+                            value={tx.matched_income_id ?? ''}
+                            status={tx.ignored && ['refund', 'non_payroll_deposit'].includes(tx.matched_source) ? tx.matched_source : null}
+                            onSelectIncome={id => handleReassignIncome(tx, id)}
+                            onMarkAs={reason => handleMarkIncomeAs(tx, reason)}
+                            onCreateIncome={label => handleCreateIncome(tx, label)}
+                            placeholder="Assign income source…"
+                          />
+                        )
+                      ) : tx.ignored ? (
                         <span className="tx-status-badge ignored">Excluded</span>
-                      ) : isIncome ? (
-                        <span className="tx-income-badge">💵 Credit</span>
                       ) : rowBusy ? (
                         <span className="spinner" style={{ width: 14, height: 14 }} />
                       ) : (
@@ -377,7 +425,7 @@ export default function TransactionsPage({ budget, transactions: txHook, periods
                           ? <span className="tx-status-badge ignored">excluded</span>
                           : tx.applied
                             ? <span className="tx-status-badge applied">applied</span>
-                            : tx.matched_expense_id
+                            : (tx.matched_expense_id || tx.matched_income_id)
                               ? <span className="tx-status-badge pending">pending</span>
                               : <span className="tx-status-badge unmatched">unmatched</span>}
                         {!tx.ignored && tx.amount < 0 && (

@@ -118,21 +118,6 @@
   .tx-cat  { min-width: 150px; }
 }
 
-/* Income badge — shown instead of dropdown for positive transactions */
-.tx-income-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: .3rem;
-  font-size: .78rem;
-  font-weight: 600;
-  color: #2a7a3a;
-  background: #edf7ef;
-  border: 1px solid #b8dfc0;
-  border-radius: 999px;
-  padding: .15rem .55rem;
-  white-space: nowrap;
-}
-
 /* ── Row action buttons (undo/exclude) ── */
 .tx-action-btn {
   background: none;

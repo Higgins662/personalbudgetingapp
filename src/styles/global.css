@@ -443,6 +443,21 @@ main {
   background: var(--card); color: var(--ink);
 }
 
+/* ── Inline "add new income source" mini-form (IncomeSelect) ── */
+.income-select-new {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+.income-select-new input {
+  font-family: inherit; font-size: .8rem;
+  border: 1.5px solid var(--blue); border-radius: 4px;
+  padding: .2rem .5rem; outline: none;
+  background: var(--card); color: var(--ink);
+  min-width: 160px;
+}
+
 /* ── Modal — used by ClearMonthModal and any future confirmation dialogs ── */
 .modal-backdrop {
   position: fixed;

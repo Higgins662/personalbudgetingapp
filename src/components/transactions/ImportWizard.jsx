@@ -1,18 +1,20 @@
 import { useState, useRef, useMemo } from 'react'
 import { parseCSV, getCSVHeaders, extractTransactions, guessColMap } from '../../lib/csvParser'
-import { autoMatch } from '../../lib/fuzzyMatch'
+import { autoMatch, matchIncomeTransactions } from '../../lib/fuzzyMatch'
 import { fmt } from '../../lib/format'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import { usePayeeRules } from '../../hooks/usePayeeRules'
 import { useGlobalPatterns } from '../../hooks/useGlobalPatterns'
 import { tagTransfers } from '../../lib/transferDetection'
+import { promoteToAnnual } from '../../lib/annualConversion'
 import GroupedExpenseSelect from '../ui/GroupedExpenseSelect'
+import IncomeSelect from '../ui/IncomeSelect'
 import TransferPanel from '../ui/TransferPanel'
 import '../../pages/ReconcilePage.css'
 
 export default function ImportWizard({ budget, transactions: txHook, periods, onClose }) {
-  const { monthly, annual, categories, loading: budgetLoading, reload: reloadBudget } = budget
+  const { monthly, annual, income, categories, addIncome, loading: budgetLoading, reload: reloadBudget } = budget
   const { bankAccounts, transactions, insertTransactions, updateBankAccount, addBankAccount,
           loading: txLoading, reload: reloadTx } = txHook
   const { user }                              = useAuth()
@@ -133,7 +135,8 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
     const txNormal     = tagged.filter(t => !t.likelyTransfer)
     setTransfers(txTransfers)
     setExcludedTransfers(new Set(txTransfers.map((_, i) => i)))
-    const matched = autoMatch(txNormal, allExpenses, personalRules, globalPatterns)
+    const matchedExpenses = autoMatch(txNormal, allExpenses, personalRules, globalPatterns)
+    const matched = matchIncomeTransactions(matchedExpenses, income)
     setPreview(matched)
     setStage('preview'); setError('')
   }
@@ -143,7 +146,7 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
     const expenseItem = allExpenses.find(e => e.id === expenseItemId)
     setPreview(prev => prev.map((t, i) => i === index
       ? { ...t, matched_expense_id: expenseItemId, matched_score: 1, matched_source: 'manual',
-          suggested_category_name: undefined, _showAssignFor: undefined } : t))
+          suggested_category_name: undefined } : t))
     if (expenseItem) {
       learnRule(tx.description, expenseItemId)
       const cat = categories.find(c => c.id === expenseItem.category_id)
@@ -151,11 +154,34 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
     }
   }
 
+  function handleAssignIncome(index, incomeItemId) {
+    setPreview(prev => prev.map((t, i) => i === index
+      ? { ...t, matched_income_id: incomeItemId, matched_source: 'manual' } : t))
+  }
+
+  function handleMarkIncomeAs(index, reason) {
+    setPreview(prev => prev.map((t, i) => i === index
+      ? { ...t, matched_income_id: null, matched_source: reason } : t))
+  }
+
+  async function handleCreateIncomeInline(index, label) {
+    const { error, data } = await addIncome({ label })
+    if (error || !data) return null
+    handleAssignIncome(index, data.id)
+    return data.id
+  }
+
   function handleAcceptSuggestion(index) {
     const tx           = preview[index]
     const suggestedCat = categories.find(c => c.name === tx.suggested_category_name)
-    setPreview(prev => prev.map((t, i) => i === index
-      ? { ...t, _showAssignFor: suggestedCat?.id ?? true } : t))
+    const repItem = suggestedCat
+      ? allExpenses.find(e => e.category_id === suggestedCat.id && e.frequency !== 'annual')
+      : null
+    if (repItem) handleAssignMatch(index, repItem.id)
+  }
+
+  function handleToggleYearly(index) {
+    setPreview(prev => prev.map((t, i) => i === index ? { ...t, _yearly: !t._yearly } : t))
   }
 
   function handleExcludeAllTransfers() { setExcludedTransfers(new Set(transfers.map((_, i) => i))) }
@@ -177,16 +203,38 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
     } else {
       await updateBankAccount(acctId, { col_date: colMap.dateCol, col_desc: colMap.descCol, col_amount: colMap.amountCol, amount_sign: colMap.amountSign })
     }
+    // Preview rows flagged yearly, keyed by the same signature insertTransactions
+    // uses for dedup — lets us find each row's real (post-insert) id afterward.
+    const sigOf = r => `${acctId ?? ''}|${r.date}|${r.amount}|${(r.description || '').trim().toUpperCase()}`
+    const yearlyMatchByPreviewSig = new Map()
+    for (const t of preview) {
+      if (!t._skip && t._yearly && t.matched_expense_id) yearlyMatchByPreviewSig.set(sigOf(t), t.matched_expense_id)
+    }
+
+    const NON_INCOME_REASONS = ['refund', 'non_payroll_deposit']
     const normalToInsert = preview.filter(t => !t._skip)
-      .map(({ _showAssignFor, suggested_category_name, suggested_pattern, suggested_hit_count, matched_source, likelyTransfer, ...t }) =>
-        ({ ...t, bank_account_id: acctId }))
+      .map(({ suggested_category_name, suggested_pattern, suggested_hit_count, likelyTransfer, _yearly, ...t }) =>
+        ({
+          ...t,
+          bank_account_id: acctId,
+          ignored: t.ignored || NON_INCOME_REASONS.includes(t.matched_source),
+        }))
     const transfersToInsert = transfers.filter((_, i) => !excludedTransfers.has(i))
       .map(({ likelyTransfer, matched_source, ...t }) => ({ ...t, bank_account_id: acctId, ignored: false }))
     const excludedToInsert = transfers.filter((_, i) => excludedTransfers.has(i))
       .map(({ likelyTransfer, matched_source, ...t }) => ({ ...t, bank_account_id: acctId, ignored: true }))
-    const { error, duplicatesSkipped } = await insertTransactions([...normalToInsert, ...transfersToInsert, ...excludedToInsert])
+    const { data: insertedRows, error, duplicatesSkipped } = await insertTransactions([...normalToInsert, ...transfersToInsert, ...excludedToInsert])
     setSaving(false)
     if (error) { setError(error.message); return }
+
+    // Promote any transaction flagged yearly to its own dedicated annual item.
+    if (yearlyMatchByPreviewSig.size) {
+      const promotions = (insertedRows ?? [])
+        .map(row => [row, yearlyMatchByPreviewSig.get(sigOf(row))])
+        .filter(([, expenseItemId]) => expenseItemId)
+        .map(([row, expenseItemId]) => promoteToAnnual(row, expenseItemId))
+      if (promotions.length) await Promise.all(promotions)
+    }
 
     // Contribute every matched transaction to the global payee pattern pool.
     // Fire-and-forget — don't block the UI on these.
@@ -199,9 +247,12 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
         contribute(tx.description, cat.name)
       }
     }
-    const matched       = normalToInsert.filter(t => t.matched_expense_id).length
-    const unmatched     = normalToInsert.filter(t => !t.matched_expense_id).length
-    const unmatchedTotal = normalToInsert.filter(t => !t.matched_expense_id && t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0)
+    const expenseRows    = normalToInsert.filter(t => t.amount < 0)
+    const incomeRows     = normalToInsert.filter(t => t.amount > 0)
+    const incomeResolved = incomeRows.filter(t => t.matched_income_id || NON_INCOME_REASONS.includes(t.matched_source))
+    const matched        = expenseRows.filter(t => t.matched_expense_id).length + incomeResolved.length
+    const unmatched      = expenseRows.filter(t => !t.matched_expense_id).length + (incomeRows.length - incomeResolved.length)
+    const unmatchedTotal = expenseRows.filter(t => !t.matched_expense_id).reduce((s, t) => s + Math.abs(t.amount), 0)
     setImportResult({ matched, unmatched, unmatchedTotal, total: normalToInsert.length, transfersExcluded: excludedTransfers.size, transfersIncluded: transfersToInsert.length, duplicatesSkipped })
     setStage('done')
   }
@@ -434,9 +485,9 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
             <TransferPanel transfers={transfers} excluded={excludedTransfers} onExcludeAll={handleExcludeAllTransfers} onToggle={handleToggleTransfer} />
             <div className="rec-preview-list">
               {preview.map((tx, i) => {
-                const matched      = allExpenses.find(e => e.id === tx.matched_expense_id)
-                const suggestedCat = tx.suggested_category_name ? categories.find(c => c.name === tx.suggested_category_name) : null
-                const candidates   = suggestedCat ? allExpenses.filter(e => e.category_id === suggestedCat.id) : []
+                const isIncome = tx.amount > 0
+                const matched      = !isIncome ? allExpenses.find(e => e.id === tx.matched_expense_id) : null
+                const matchedIncome = isIncome ? income.find(e => e.id === tx.matched_income_id) : null
                 return (
                   <div key={i} className={`rec-tx${tx._skip ? ' rec-tx-skip' : ''}`}>
                     <div className="rec-tx-main">
@@ -452,26 +503,62 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
                         </button>
                       </div>
                     </div>
-                    {matched && tx.matched_source === 'rule'   && <div className="rec-tx-match rec-tx-match-rule">🎯 Auto-matched to <strong>{matched.label}</strong></div>}
-                    {matched && tx.matched_source === 'fuzzy'  && <div className="rec-tx-match">✓ Matched to <strong>{matched.label}</strong></div>}
-                    {matched && tx.matched_source === 'manual' && <div className="rec-tx-match rec-tx-match-rule">✓ Assigned to <strong>{matched.label}</strong></div>}
-                    {!matched && tx.suggested_category_name && !tx._showAssignFor && (
-                      <div className="rec-tx-suggestion">
-                        <span>💡 Others categorize this as <strong>{tx.suggested_category_name}</strong>{tx.suggested_hit_count > 1 ? ` (${tx.suggested_hit_count} users)` : ''}</span>
-                        <button className="btn btn-g" style={{ padding: '.18rem .5rem', fontSize: '.72rem' }} onClick={() => handleAcceptSuggestion(i)}>Apply</button>
-                      </div>
-                    )}
-                    {!matched && tx._showAssignFor && (
-                      <div className="rec-tx-assign">
-                        <span style={{ fontSize: '.78rem', color: 'var(--ink3)' }}>Which {tx.suggested_category_name} item is this?</span>
-                        <GroupedExpenseSelect allExpenses={candidates.length ? candidates : allExpenses} categories={budgetCategories} onChange={id => handleAssignMatch(i, id)} placeholder={candidates.length ? `Select ${tx.suggested_category_name} item…` : 'Assign to budget item…'} />
-                      </div>
-                    )}
-                    {!matched && !tx.suggested_category_name && (
-                      <div className="rec-tx-assign">
-                        <span style={{ fontSize: '.78rem', color: 'var(--ink3)' }}>No match — assign to:</span>
-                        <GroupedExpenseSelect allExpenses={allExpenses} categories={budgetCategories} onChange={id => handleAssignMatch(i, id)} />
-                      </div>
+
+                    {isIncome ? (
+                      <>
+                        {matchedIncome && (
+                          <div className={`rec-tx-match${income.length === 1 ? ' rec-tx-match-rule' : ''}`}>
+                            💵 Matched to <strong>{matchedIncome.label}</strong> — change below if wrong
+                          </div>
+                        )}
+                        {tx.matched_source === 'refund' && (
+                          <div className="rec-tx-match">🔄 Marked as a refund — not counted as income</div>
+                        )}
+                        {tx.matched_source === 'non_payroll_deposit' && (
+                          <div className="rec-tx-match">💰 Marked as a non-payroll deposit — not counted as income</div>
+                        )}
+                        <div className="rec-tx-assign">
+                          <IncomeSelect
+                            incomeItems={income}
+                            value={tx.matched_income_id ?? ''}
+                            status={['refund', 'non_payroll_deposit'].includes(tx.matched_source) ? tx.matched_source : null}
+                            onSelectIncome={id => handleAssignIncome(i, id)}
+                            onMarkAs={reason => handleMarkIncomeAs(i, reason)}
+                            onCreateIncome={label => handleCreateIncomeInline(i, label)}
+                            placeholder="Choose income source…"
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {matched && tx.matched_source === 'rule'   && <div className="rec-tx-match rec-tx-match-rule">🎯 Auto-matched to <strong>{matched.label}</strong> — change below if wrong</div>}
+                        {matched && tx.matched_source === 'fuzzy'  && <div className="rec-tx-match">✓ Matched to <strong>{matched.label}</strong> — change below if wrong</div>}
+                        {matched && tx.matched_source === 'manual' && <div className="rec-tx-match rec-tx-match-rule">✓ Assigned to <strong>{matched.label}</strong></div>}
+                        {!matched && tx.suggested_category_name && (
+                          <div className="rec-tx-suggestion">
+                            <span>💡 Others categorize this as <strong>{tx.suggested_category_name}</strong>{tx.suggested_hit_count > 1 ? ` (${tx.suggested_hit_count} users)` : ''}</span>
+                            <button className="btn btn-g" style={{ padding: '.18rem .5rem', fontSize: '.72rem' }} onClick={() => handleAcceptSuggestion(i)}>Apply</button>
+                          </div>
+                        )}
+                        <div className="rec-tx-assign">
+                          <GroupedExpenseSelect
+                            allExpenses={allExpenses}
+                            categories={budgetCategories}
+                            value={tx.matched_expense_id ?? ''}
+                            onChange={id => handleAssignMatch(i, id)}
+                            placeholder="Choose category…"
+                          />
+                          <label className="rec-tx-yearly-label" title={tx.matched_expense_id ? 'Track as its own yearly line instead of monthly' : 'Choose a category first'}>
+                            <input
+                              type="checkbox"
+                              checked={!!tx._yearly}
+                              disabled={!tx.matched_expense_id}
+                              onChange={() => handleToggleYearly(i)}
+                            />
+                            Yearly
+                          </label>
+                        </div>
+                      </>
                     )}
                   </div>
                 )

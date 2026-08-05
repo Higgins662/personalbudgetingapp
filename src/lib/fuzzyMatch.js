@@ -220,3 +220,55 @@ export function autoMatch(transactions, expenseItems, personalRules = [], global
     return tx
   })
 }
+
+/**
+ * Keywords indicating a deposit is likely recurring income (payroll, direct
+ * deposit) rather than a one-off deposit — a mobile/check deposit, refund,
+ * reimbursement, or P2P transfer. Not exhaustive; the point is to require
+ * positive evidence before auto-matching, not to catch every case.
+ */
+const RECURRING_INCOME_PATTERNS = [
+  'payroll', 'direct dep', 'directdep', 'dir dep', 'salary', 'wages',
+  'paycheck', 'pay check', 'ppd id',
+]
+
+function looksLikeRecurringIncome(description) {
+  const lower = (description ?? '').toLowerCase()
+  return RECURRING_INCOME_PATTERNS.some(p => lower.includes(p))
+}
+
+/**
+ * Match income deposits (positive-amount transactions) against the user's
+ * income items. Unlike expense matching, there's no rule/global-pattern tier
+ * — income sources are few and personal, so this is just:
+ *
+ *   1. Description must look like recurring income (payroll/direct deposit
+ *      keywords) — otherwise it's left unmatched for manual review. This
+ *      keeps refunds, check/mobile deposits, and P2P transfers from getting
+ *      silently counted as income just because a deposit landed.
+ *   2. Exactly one income item → auto-assign to it.
+ *   3. Multiple income items   → fuzzy-match the description against each
+ *                                 item's label; leave unmatched if nothing
+ *                                 clears the threshold, for manual assignment.
+ *
+ * @param {Array} transactions
+ * @param {Array} incomeItems
+ * @param {number} threshold
+ */
+export function matchIncomeTransactions(transactions, incomeItems, threshold = 0.4) {
+  return transactions.map(tx => {
+    if (tx.matched_income_id || tx.ignored || tx.amount <= 0) return tx
+    if (!looksLikeRecurringIncome(tx.description)) return tx
+
+    if (incomeItems.length === 1) {
+      return { ...tx, matched_income_id: incomeItems[0].id, matched_source: 'income' }
+    }
+
+    const result = findBestMatch(tx.description, incomeItems, threshold)
+    if (result) {
+      return { ...tx, matched_income_id: result.item.id, matched_source: 'income' }
+    }
+
+    return tx
+  })
+}
