@@ -139,6 +139,23 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* Help */}
+      <div className="settings-section card">
+        <div className="settings-section-title">Help</div>
+        <div className="settings-row">
+          <div>
+            <div className="settings-label">Welcome guide</div>
+            <div className="settings-sublabel">
+              Revisit the tour of the setup wizard, budget, categories, yearly
+              subscriptions, savings goals, and transactions.
+            </div>
+          </div>
+          <button className="btn btn-g" style={{ fontSize: '.8rem' }} onClick={() => navigate('/welcome')}>
+            Take the tour
+          </button>
+        </div>
+      </div>
+
       {/* Privacy */}
       <div className="settings-section card">
         <div className="settings-section-title">Privacy</div>

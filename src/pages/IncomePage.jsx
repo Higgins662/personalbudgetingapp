@@ -2,7 +2,7 @@ import BudgetTable from '../components/ui/BudgetTable'
 import { MonthSelector } from '../components/ui/PeriodSelector'
 import { fmt } from '../lib/format'
 
-export default function IncomePage({ budget, transactions, periods }) {
+export default function IncomePage({ budget, transactions, periods, onTabChange }) {
   const { income, categories, updateIncome, addIncome, deleteIncome, totals, loading } = budget
   const bankAccounts = transactions?.bankAccounts ?? []
 
@@ -19,7 +19,7 @@ export default function IncomePage({ budget, transactions, periods }) {
         </span>
       </div>
 
-      {periods && <MonthSelector periods={periods} />}
+      {periods && <MonthSelector periods={periods} onTabChange={onTabChange} />}
 
       {bankAccounts.length === 0 && (
         <div className="alert alert-info" style={{ marginBottom: '1rem', fontSize: '.83rem' }}>

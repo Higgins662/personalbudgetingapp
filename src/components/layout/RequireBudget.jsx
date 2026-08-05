@@ -2,14 +2,16 @@ import { useState, useEffect } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { userHasBudget } from '../../lib/seed'
+import { hasSeenWelcomeGuide } from '../../lib/welcomeGuide'
 
 /**
  * Wraps the main app (AppShell). Checks whether the signed-in user has
  * completed onboarding (i.e. has at least one income_item). If not,
- * redirects to /onboarding instead of dropping them into an empty dashboard.
+ * redirects to /welcome (first visit) or /onboarding instead of dropping
+ * them into an empty dashboard.
  *
  * This is intentionally separate from ProtectedRoute (auth-only) so that
- * /onboarding itself never gets caught in a redirect loop.
+ * /welcome and /onboarding themselves never get caught in a redirect loop.
  */
 export default function RequireBudget({ children }) {
   const { user } = useAuth()
@@ -35,7 +37,7 @@ export default function RequireBudget({ children }) {
   }
 
   if (!hasBudget) {
-    return <Navigate to="/onboarding" replace />
+    return <Navigate to={hasSeenWelcomeGuide() ? '/onboarding' : '/welcome'} replace />
   }
 
   return children

@@ -7,6 +7,7 @@ import Signup from './pages/Signup'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 import Onboarding from './pages/Onboarding'
+import Welcome from './pages/Welcome'
 import AppShell from './pages/AppShell'
 
 export default function App() {
@@ -23,6 +24,10 @@ export default function App() {
               the same way the rest of the app is. */}
           <Route path="/reset-password" element={
             <ProtectedRoute><ResetPassword /></ProtectedRoute>
+          } />
+
+          <Route path="/welcome" element={
+            <ProtectedRoute><Welcome /></ProtectedRoute>
           } />
 
           <Route path="/onboarding" element={

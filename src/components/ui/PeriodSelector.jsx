@@ -1,17 +1,37 @@
+import { useState } from 'react'
 import { formatMonthLabel, formatYearLabel } from '../../hooks/usePeriods'
+import StartNewMonthModal from './StartNewMonthModal'
 import './PeriodSelector.css'
 
 /**
  * Shown at the top of Dashboard, Income, Monthly Expenses.
  * Lets the user browse current/previous month and trigger early rollover.
  */
-export function MonthSelector({ periods }) {
+export function MonthSelector({ periods, onTabChange }) {
   const {
     viewingMonth, isViewingCurrentMonth,
     canGoPrevMonth, canGoNextMonth,
     goPrevMonth, goNextMonth,
     startNewMonth, rolling,
   } = periods
+
+  const [showConfirm, setShowConfirm] = useState(false)
+
+  const nextMonthStart = (() => {
+    const [y, m] = viewingMonth.split('-').map(Number)
+    const d = new Date(y, m, 1) // JS months 0-based → m is already "next month" index
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
+  })()
+
+  async function handleConfirm() {
+    await startNewMonth()
+    setShowConfirm(false)
+  }
+
+  function handleGoToImport() {
+    setShowConfirm(false)
+    onTabChange?.('transactions')
+  }
 
   return (
     <div className="period-selector">
@@ -25,9 +45,20 @@ export function MonthSelector({ periods }) {
       <button className="period-nav-btn" onClick={goNextMonth} disabled={!canGoNextMonth} title="Next month">›</button>
 
       {isViewingCurrentMonth && (
-        <button className="btn btn-g period-roll-btn" onClick={startNewMonth} disabled={rolling}>
-          {rolling ? <span className="spinner" style={{ width: 13, height: 13 }} /> : '→ Start New Month'}
+        <button className="btn btn-g period-roll-btn" onClick={() => setShowConfirm(true)} disabled={rolling}
+          title="Jump ahead to next month's budget before its date arrives">
+          {rolling ? <span className="spinner" style={{ width: 13, height: 13 }} /> : '→ Start Next Month Early'}
         </button>
+      )}
+
+      {showConfirm && (
+        <StartNewMonthModal
+          nextMonthStart={nextMonthStart}
+          rolling={rolling}
+          onConfirm={handleConfirm}
+          onGoToImport={handleGoToImport}
+          onCancel={() => setShowConfirm(false)}
+        />
       )}
     </div>
   )
