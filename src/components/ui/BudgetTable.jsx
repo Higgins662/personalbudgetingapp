@@ -182,9 +182,14 @@ export default function BudgetTable({
               <td className="r">{fmt(totalBudgeted)}</td>
               <td className="r">{fmt(totalActual)}</td>
               <td className="r">
-                <span className={totalActual - totalBudgeted >= 0 ? 'v-green' : 'v-red'}>
-                  {totalActual >= totalBudgeted ? '+' : ''}{fmt(totalActual - totalBudgeted)}
-                </span>
+                {(() => {
+                  const totalDiff = isIncome ? totalActual - totalBudgeted : totalBudgeted - totalActual
+                  return (
+                    <span className={totalDiff >= 0 ? 'v-green' : 'v-red'}>
+                      {totalDiff >= 0 ? '+' : ''}{fmt(totalDiff)}
+                    </span>
+                  )
+                })()}
               </td>
               {showNote && <td />}
               <td />

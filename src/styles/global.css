@@ -215,6 +215,7 @@ tfoot td {
   background: var(--card2);
   font-size: .875rem;
 }
+tfoot td.r { text-align: right; }
 
 /* Mobile table → card rows */
 @media (max-width: 640px) {
