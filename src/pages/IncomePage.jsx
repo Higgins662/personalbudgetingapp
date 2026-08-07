@@ -1,10 +1,12 @@
 import BudgetTable from '../components/ui/BudgetTable'
 import { MonthSelector } from '../components/ui/PeriodSelector'
+import { isSystemCategory } from '../hooks/useBudget'
 import { fmt } from '../lib/format'
 
 export default function IncomePage({ budget, transactions, periods, onTabChange }) {
   const { income, categories, updateIncome, addIncome, deleteIncome, totals, loading } = budget
   const bankAccounts = transactions?.bankAccounts ?? []
+  const visibleIncome = income.filter(r => !isSystemCategory(r, categories))
 
   if (loading) return <div className="loading-center"><span className="spinner" /> Loading…</div>
 
@@ -15,7 +17,7 @@ export default function IncomePage({ budget, transactions, periods, onTabChange 
         <span className="sec-hint">
           Budgeted: <strong className="mono">{fmt(totals.budgetedIncome)}</strong>
           &nbsp;·&nbsp;
-          Actual: <strong className="mono v-green">{fmt(totals.actualIncome)}</strong>
+          Actual: <strong className={`mono ${totals.actualIncome < totals.budgetedIncome ? 'v-red' : 'v-green'}`}>{fmt(totals.actualIncome)}</strong>
         </span>
       </div>
 
@@ -29,7 +31,7 @@ export default function IncomePage({ budget, transactions, periods, onTabChange 
 
       <div className="tbl-wrap">
         <BudgetTable
-          rows={income}
+          rows={visibleIncome}
           categories={categories}
           bankAccounts={bankAccounts}
           onUpdate={updateIncome}

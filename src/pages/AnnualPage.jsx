@@ -1,10 +1,12 @@
 import BudgetTable from '../components/ui/BudgetTable'
 import { YearSelector } from '../components/ui/PeriodSelector'
+import { isSystemCategory } from '../hooks/useBudget'
 import { fmt } from '../lib/format'
 
 export default function AnnualPage({ budget, transactions, periods }) {
   const { annual, categories, updateAnnual, addAnnual, deleteAnnual, totals, loading } = budget
   const bankAccounts = transactions?.bankAccounts ?? []
+  const visibleAnnual = annual.filter(r => !isSystemCategory(r, categories))
 
   if (loading) return <div className="loading-center"><span className="spinner" /> Loading…</div>
 
@@ -35,7 +37,7 @@ export default function AnnualPage({ budget, transactions, periods }) {
 
       <div className="tbl-wrap">
         <BudgetTable
-          rows={annual}
+          rows={visibleAnnual}
           categories={categories}
           bankAccounts={bankAccounts}
           onUpdate={updateAnnual}

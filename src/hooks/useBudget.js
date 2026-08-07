@@ -37,7 +37,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
 
-function isSystemCategory(row, categories) {
+export function isSystemCategory(row, categories) {
   if (!row.category_id) return false
   const cat = categories.find(c => c.id === row.category_id)
   return cat?.is_system === true

@@ -1,10 +1,15 @@
 import BudgetTable from '../components/ui/BudgetTable'
 import { MonthSelector } from '../components/ui/PeriodSelector'
+import { isSystemCategory } from '../hooks/useBudget'
 import { fmt } from '../lib/format'
 
 export default function MonthlyPage({ budget, transactions, periods, onTabChange }) {
   const { monthly, categories, updateMonthly, addMonthly, deleteMonthly, totals, loading } = budget
   const bankAccounts = transactions?.bankAccounts ?? []
+  // System categories (e.g. Transfers & Payments) are internal bookkeeping,
+  // not real budget lines — exclude them so this table's own total matches
+  // the header total above, which already excludes them.
+  const visibleMonthly = monthly.filter(r => !isSystemCategory(r, categories))
 
   if (loading) return <div className="loading-center"><span className="spinner" /> Loading…</div>
 
@@ -15,7 +20,7 @@ export default function MonthlyPage({ budget, transactions, periods, onTabChange
         <span className="sec-hint">
           Budgeted: <strong className="mono">{fmt(totals.budgetedMonthly)}</strong>
           &nbsp;·&nbsp;
-          Actual: <strong className="mono v-red">{fmt(totals.actualMonthly)}</strong>
+          Actual: <strong className={`mono ${totals.actualMonthly > totals.budgetedMonthly ? 'v-red' : 'v-green'}`}>{fmt(totals.actualMonthly)}</strong>
         </span>
       </div>
 
@@ -29,7 +34,7 @@ export default function MonthlyPage({ budget, transactions, periods, onTabChange
 
       <div className="tbl-wrap">
         <BudgetTable
-          rows={monthly}
+          rows={visibleMonthly}
           categories={categories}
           bankAccounts={bankAccounts}
           onUpdate={updateMonthly}
