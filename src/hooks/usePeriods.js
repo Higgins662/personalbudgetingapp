@@ -93,7 +93,26 @@ export function usePeriods() {
     setCurrentMonthPeriod(curMonth)
     setCurrentYearPeriod(curYear)
 
-    setViewingMonth(curMonth?.period_start ?? thisMonth)
+    // Default the initial view to last month instead of the current one if
+    // the current month has no real activity yet (nothing imported/applied)
+    // — a brand new, all-zero month isn't a useful thing to land on. The
+    // user can still navigate forward to it; this only affects where
+    // Dashboard/Income/Monthly Expenses land on load.
+    let initialViewingMonth = curMonth?.period_start ?? thisMonth
+    if (curMonth) {
+      const { data: curItems } = await supabase
+        .from('period_items')
+        .select('actual')
+        .eq('period_id', curMonth.id)
+      const hasActivity = (curItems ?? []).some(pi => (pi.actual || 0) > 0)
+      if (!hasActivity) {
+        const prevMonthStart = addMonths(curMonth.period_start, -1)
+        if (months.some(p => p.period_start === prevMonthStart)) {
+          initialViewingMonth = prevMonthStart
+        }
+      }
+    }
+    setViewingMonth(initialViewingMonth)
     setViewingYear(curYear?.period_start ?? thisYear)
 
     setLoading(false)
