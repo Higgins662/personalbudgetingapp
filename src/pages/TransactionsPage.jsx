@@ -217,6 +217,11 @@ export default function TransactionsPage({ budget, transactions: txHook, periods
 
   const totalFiltered = filtered.reduce((s, t) => s + (t.amount < 0 ? Math.abs(t.amount) : 0), 0)
 
+  // Only meaningful once the shown set actually spans more than one month —
+  // e.g. filtered down to a single month, the average would just restate the total.
+  const filteredMonthCount = new Set(filtered.map(t => t.date?.slice(0, 7)).filter(Boolean)).size
+  const avgPerMonth = filteredMonthCount > 1 ? totalFiltered / filteredMonthCount : null
+
   // ── Import mode takes over the whole tab ──────────────────────────────────
   if (showImport) {
     return (
@@ -235,7 +240,7 @@ export default function TransactionsPage({ budget, transactions: txHook, periods
         <div style={{ display: 'flex', flexDirection: 'column', gap: '.15rem' }}>
           <span className="sec-title">Transactions</span>
           <span className="sec-hint">
-            {filtered.length} shown{totalFiltered > 0 && ` · ${fmt(totalFiltered)} spending`}
+            {filtered.length} shown{totalFiltered > 0 && ` · ${fmt(totalFiltered)} spending`}{avgPerMonth != null && ` (avg ${fmt(avgPerMonth)}/mo)`}
           </span>
         </div>
         <div style={{ display: 'flex', gap: '.5rem', alignItems: 'center' }}>
