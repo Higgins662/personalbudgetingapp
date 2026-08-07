@@ -216,22 +216,18 @@ export async function seedFromTransactions(userId, {
     if (key) incItemMap[key] = item.id
   }
 
-  // Also build a lookup by normalised pattern from incomeSelections
-  // (incomeSelections keys are normalised payee descriptions)
-  const incomeKeyToItemId = {}
-  for (const row of incomeRows) {
-    const key = row.label?.toUpperCase().trim()
-    if (key) incomeKeyToItemId[key] = null // will be resolved below
-  }
-
-  // Tag income transactions with matched_source only — do NOT set matched_expense_id
-  // since that FK references expense_items, not income_items
+  // Tag income transactions with matched_income_id (not matched_expense_id —
+  // that FK references expense_items, not income_items). Left applied:
+  // false, same as matched expenses — apply_transactions_to_budget (called
+  // right after insert) is what actually applies each transaction to its
+  // own transaction-dated period.
   const finalTxRows = txRows.map(tx => {
     if (tx.matched_expense_id) return tx // already matched as expense
     if (tx.amount > 0) {
       const key = tx.description?.toUpperCase().trim()
-      if (incItemMap[key]) {
-        return { ...tx, matched_source: 'income' }
+      const incomeItemId = incItemMap[key]
+      if (incomeItemId) {
+        return { ...tx, matched_source: 'income', matched_income_id: incomeItemId }
       }
     }
     return tx
@@ -351,7 +347,12 @@ async function seedCurrentPeriodWithValues(userId, incData, expData, expenseRows
 
   const periodItemRows = []
 
-  // Income → monthly period
+  // Income → monthly period. Only BUDGETED is seeded here, same as expenses
+  // below — ACTUAL is deliberately left at 0. apply_transactions_to_budget
+  // (called right after this) date-routes each matched income transaction
+  // to its own transaction date's month, same as it already does for
+  // expenses, instead of collapsing everything into a single current-month
+  // aggregate here.
   for (const item of incData) {
     const sourceRow = incomeRows.find(r => r.label === item.label)
     periodItemRows.push({
@@ -360,7 +361,7 @@ async function seedCurrentPeriodWithValues(userId, incData, expData, expenseRows
       item_id:   item.id,
       item_type: 'income',
       budgeted:  sourceRow?.budgeted ?? 0,
-      actual:    sourceRow?.actual   ?? 0,
+      actual:    0,
     })
   }
 
