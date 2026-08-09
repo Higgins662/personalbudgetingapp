@@ -152,7 +152,7 @@ export default function Dashboard({ budget, goalsHook, periods, onTabChange }) {
 
   return (
     <div className="fadein">
-      {periods && <MonthSelector periods={periods} onTabChange={onTabChange} />}
+      {periods && <MonthSelector periods={periods} onTabChange={onTabChange} showRecentBadge />}
 
       {/* Guided month closeout */}
       {showCloseout && (

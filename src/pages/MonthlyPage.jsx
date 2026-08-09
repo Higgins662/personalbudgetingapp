@@ -24,7 +24,7 @@ export default function MonthlyPage({ budget, transactions, periods, onTabChange
         </span>
       </div>
 
-      {periods && <MonthSelector periods={periods} onTabChange={onTabChange} />}
+      {periods && <MonthSelector periods={periods} onTabChange={onTabChange} showRecentHint />}
 
       {bankAccounts.length === 0 && (
         <div className="alert alert-info" style={{ marginBottom: '1rem', fontSize: '.83rem' }}>

@@ -50,12 +50,34 @@
 }
 .period-badge-current { background: var(--green-lt); color: var(--green); border: 1px solid var(--green-bd); }
 .period-badge-past    { background: #fff8e8; color: var(--gold); border: 1px solid #e8d8a8; }
+.period-badge-recent  { background: var(--blue-lt); color: var(--blue); border: 1px solid var(--blue-bd); }
 
 .period-roll-btn {
   font-size: .78rem;
   padding: .4rem .8rem;
   flex-shrink: 0;
   margin-left: auto;
+}
+
+.period-hint {
+  flex-basis: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: .4rem;
+  font-size: .8rem;
+  line-height: 1.4;
+  background: var(--blue-lt);
+  color: var(--blue);
+  border: 1px solid var(--blue-bd);
+  border-radius: var(--radius-sm);
+  padding: .6rem .75rem;
+}
+
+.period-hint-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  margin-top: .15rem;
 }
 
 @media (max-width: 560px) {

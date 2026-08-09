@@ -209,6 +209,14 @@ export function usePeriods() {
   const isViewingCurrentMonth = viewingMonth === currentMonthPeriod?.period_start
   const isViewingCurrentYear  = viewingYear  === currentYearPeriod?.period_start
 
+  // The month right before "current" — most likely where the real, most
+  // recent activity actually lives (see init(): we default to landing here
+  // when the current month has nothing in it yet). Distinct from genuinely
+  // old months two or more back, where "view only" framing still applies.
+  const isViewingMostRecentPastMonth = !isViewingCurrentMonth
+    && !!currentMonthPeriod
+    && addMonths(viewingMonth, 1) === currentMonthPeriod.period_start
+
   const canGoPrevMonth = availableMonths.includes(addMonths(viewingMonth, -1))
   const canGoNextMonth = availableMonths.includes(addMonths(viewingMonth, 1))
   const canGoPrevYear  = availableYears.includes(addYears(viewingYear, -1))
@@ -219,7 +227,7 @@ export function usePeriods() {
     currentMonthPeriod, currentYearPeriod,
     viewingMonth, viewingYear,
     setViewingMonth, setViewingYear,
-    isViewingCurrentMonth, isViewingCurrentYear,
+    isViewingCurrentMonth, isViewingCurrentYear, isViewingMostRecentPastMonth,
     canGoPrevMonth, canGoNextMonth, canGoPrevYear, canGoNextYear,
     goPrevMonth: () => setViewingMonth(m => addMonths(m, -1)),
     goNextMonth: () => setViewingMonth(m => addMonths(m, 1)),

@@ -7,9 +7,9 @@ import './PeriodSelector.css'
  * Shown at the top of Dashboard, Income, Monthly Expenses.
  * Lets the user browse current/previous month and trigger early rollover.
  */
-export function MonthSelector({ periods, onTabChange }) {
+export function MonthSelector({ periods, onTabChange, showRecentHint = false, showRecentBadge = false }) {
   const {
-    viewingMonth, isViewingCurrentMonth,
+    viewingMonth, isViewingCurrentMonth, isViewingMostRecentPastMonth,
     canGoPrevMonth, canGoNextMonth,
     goPrevMonth, goNextMonth,
     startNewMonth, rolling,
@@ -40,9 +40,18 @@ export function MonthSelector({ periods, onTabChange }) {
         <span className="period-label">{formatMonthLabel(viewingMonth)}</span>
         {isViewingCurrentMonth
           ? <span className="period-badge period-badge-current">Current</span>
-          : <span className="period-badge period-badge-past">Past · view only recommended</span>}
+          : (showRecentHint || showRecentBadge) && isViewingMostRecentPastMonth
+            ? <span className="period-badge period-badge-recent">Most Recent</span>
+            : <span className="period-badge period-badge-past">Past · view only recommended</span>}
       </div>
       <button className="period-nav-btn" onClick={goNextMonth} disabled={!canGoNextMonth} title="Next month">›</button>
+
+      {showRecentHint && isViewingMostRecentPastMonth && (
+        <div className="period-hint">
+          <img src="/brand/veravo-favicon.svg" alt="" className="period-hint-icon" />
+          This is where your most recent uploaded transactions appear. Review actuals against your budget and adjust where you need to keep on track for the new month.
+        </div>
+      )}
 
       {isViewingCurrentMonth && (
         <button className="btn btn-g period-roll-btn" onClick={() => setShowConfirm(true)} disabled={rolling}
