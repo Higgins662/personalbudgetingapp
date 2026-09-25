@@ -43,9 +43,6 @@ export default function ReconcilePage({ budget, transactions: txHook, periods, o
 
   const allExpenses = [...monthly, ...annual]
 
-  const transferCategoryId = useMemo(() =>
-    categories.find(c => c.is_system)?.id ?? null, [categories])
-
   // Already imported this period detection
   const importedThisPeriod = useMemo(() => {
     if (!periods?.viewingMonth || !transactions.length) return new Set()
@@ -129,6 +126,14 @@ export default function ReconcilePage({ budget, transactions: txHook, periods, o
     reader.readAsText(file)
   }
 
+  // Ids of system categories, so a rule learned from a manual
+  // 'Transfers & Payments' assignment re-applies the ignored flag on
+  // re-import instead of silently returning as a budget expense.
+  const systemCategoryIds = useMemo(
+    () => new Set((categories ?? []).filter(c => c.is_system).map(c => c.id)),
+    [categories]
+  )
+
   function handleBuildPreview() {
     const splitMode = colMap.amountSign === 'split'
     if (!colMap.dateCol || !colMap.descCol) {
@@ -147,16 +152,20 @@ export default function ReconcilePage({ budget, transactions: txHook, periods, o
     const txNormal     = tagged.filter(t => !t.likelyTransfer)
     setTransfers(txTransfers)
     setExcludedTransfers(new Set(txTransfers.map((_, i) => i)))
-    const matched = autoMatch(txNormal, allExpenses, personalRules, globalPatterns)
+    const matched = autoMatch(txNormal, allExpenses, personalRules, globalPatterns, 0.4, systemCategoryIds)
     setPreview(matched)
     setStage('preview'); setError('')
   }
 
-  async function handleAssignMatch(index, expenseItemId) {
+  async function handleAssignMatch(index, expenseItemId, { isTransfer = false } = {}) {
     const tx          = preview[index]
     const expenseItem = allExpenses.find(e => e.id === expenseItemId)
+    // Assigning to Transfers & Payments marks the row ignored, so it imports
+    // as a recorded-but-excluded transaction the way auto-detected transfers
+    // do, instead of landing in budget actuals.
     setPreview(prev => prev.map((t, i) => i === index
       ? { ...t, matched_expense_id: expenseItemId, matched_score: 1, matched_source: 'manual',
+          ignored: isTransfer,
           suggested_category_name: undefined, _showAssignFor: undefined } : t))
     if (expenseItem) {
       learnRule(tx.description, expenseItemId)
@@ -247,7 +256,9 @@ export default function ReconcilePage({ budget, transactions: txHook, periods, o
   const fuzzyMatchCount = preview.filter(t => t.matched_source === 'fuzzy').length
   const suggestionCount = preview.filter(t => t.matched_source === 'global').length
   const unappliedCount  = transactions.filter(t => !t.applied && !t.ignored && t.matched_expense_id).length
-  const budgetCategories = categories.filter(c => !c.is_system)
+  // Full list (system categories included) — GroupedExpenseSelect needs to
+  // see the system category so it can offer 'Transfers & Payments' as the
+  // deliberate non-budget target; it segregates them itself.
   const viewingMonthLabel = periods?.viewingMonth ? formatMonthLabel(periods.viewingMonth) : 'this month'
 
   return (
@@ -512,13 +523,13 @@ export default function ReconcilePage({ budget, transactions: txHook, periods, o
                     {!matched && tx._showAssignFor && (
                       <div className="rec-tx-assign">
                         <span style={{ fontSize: '.78rem', color: 'var(--ink3)' }}>Which {tx.suggested_category_name} item is this?</span>
-                        <GroupedExpenseSelect allExpenses={candidates.length ? candidates : allExpenses} categories={budgetCategories} onChange={id => handleAssignMatch(i, id)} placeholder={candidates.length ? `Select ${tx.suggested_category_name} item…` : 'Assign to budget item…'} />
+                        <GroupedExpenseSelect allExpenses={candidates.length ? candidates : allExpenses} categories={categories} onChange={(id, opts) => handleAssignMatch(i, id, opts)} placeholder={candidates.length ? `Select ${tx.suggested_category_name} item…` : 'Assign to budget item…'} />
                       </div>
                     )}
                     {!matched && !tx.suggested_category_name && (
                       <div className="rec-tx-assign">
                         <span style={{ fontSize: '.78rem', color: 'var(--ink3)' }}>No match — assign to:</span>
-                        <GroupedExpenseSelect allExpenses={allExpenses} categories={budgetCategories} onChange={id => handleAssignMatch(i, id)} />
+                        <GroupedExpenseSelect allExpenses={allExpenses} categories={categories} onChange={(id, opts) => handleAssignMatch(i, id, opts)} />
                       </div>
                     )}
                   </div>

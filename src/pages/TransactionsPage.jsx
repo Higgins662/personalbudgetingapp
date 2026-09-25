@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { usePayeeRules } from '../hooks/usePayeeRules'
@@ -16,12 +16,20 @@ import './TransactionsPage.css'
 
 export default function TransactionsPage({ budget, transactions: txHook, periods }) {
   const { user } = useAuth()
-  const { monthly, annual, income, categories, addIncome, reload: reloadBudget } = budget
+  const { monthly, annual, income, categories, addIncome, ensureTransferItem,
+          loading: budgetLoading, reload: reloadBudget } = budget
   const { transactions, bankAccounts, reload: reloadTx } = txHook
   const { learnRule }  = usePayeeRules()
   const { contribute } = useGlobalPatterns()
 
   const allExpenses = [...(monthly ?? []), ...(annual ?? [])]
+
+  // The Transfers & Payments budget item is created on demand (see
+  // useBudget.ensureTransferItem) — existing users were seeded without one,
+  // which is what made a missed transfer unassignable here.
+  useEffect(() => {
+    if (!budgetLoading && (categories ?? []).length) ensureTransferItem?.()
+  }, [budgetLoading, categories?.length, ensureTransferItem])
   const budgetCats  = (categories ?? [])
     .filter(c => !c.is_system)
     .filter((c, i, arr) => arr.findIndex(x => x.name === c.name) === i)
@@ -109,7 +117,7 @@ export default function TransactionsPage({ budget, transactions: txHook, periods
   // ── Row actions ───────────────────────────────────────────────────────────
   const setRowBusy = (id, v) => setBusy(b => ({ ...b, [id]: v }))
 
-  const handleReassign = useCallback(async (tx, newExpenseItemId) => {
+  const handleReassign = useCallback(async (tx, newExpenseItemId, { isTransfer = false } = {}) => {
     setRowBusy(tx.id, true); setError('')
     const { error } = await supabase.rpc('reassign_transaction', {
       p_user_id:             user.id,
@@ -118,6 +126,18 @@ export default function TransactionsPage({ budget, transactions: txHook, periods
     })
     if (error) setError(error.message)
     else {
+      // Filing something under Transfers & Payments means "this is not a
+      // budget expense". reassign_transaction reverses the old item's actual
+      // but would then add this amount to the T&P item's actual, so the
+      // ignored flag is what actually keeps it out of the budget — the same
+      // flag the TransferPanel sets for auto-detected transfers. Reassigning
+      // back to a real category clears it again.
+      const { error: flagErr } = await supabase
+        .from('transactions')
+        .update({ ignored: isTransfer })
+        .eq('id', tx.id)
+      if (flagErr) setError(flagErr.message)
+
       if (newExpenseItemId) {
         learnRule(tx.description, newExpenseItemId)
         const expItem = allExpenses.find(e => e.id === newExpenseItemId)
@@ -395,9 +415,9 @@ export default function TransactionsPage({ budget, transactions: txHook, periods
                         <>
                           <GroupedExpenseSelect
                             allExpenses={allExpenses}
-                            categories={budgetCats}
+                            categories={categories ?? []}
                             value={tx.matched_expense_id ?? ''}
-                            onChange={id => handleReassign(tx, id)}
+                            onChange={(id, opts) => handleReassign(tx, id, opts)}
                             placeholder="Assign to budget item…"
                           />
                           {cat && (

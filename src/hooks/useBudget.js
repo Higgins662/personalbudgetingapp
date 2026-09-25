@@ -235,6 +235,53 @@ export function useBudget(periods) {
     await supabase.from('categories').delete().eq('id', id)
   }
 
+  /**
+   * The expense_item backing the 'Transfers & Payments' system category,
+   * created on demand if it doesn't exist yet.
+   *
+   * Assigning a transaction anywhere in this app means pointing it at an
+   * expense_item — categories themselves are never assignment targets. But
+   * seedFromTransactions deliberately skips system categories when
+   * backfilling empty items (`!c.is_system`), so T&P alone had no item, and
+   * therefore could not be picked in any assign dropdown. The only way to
+   * file a missed transfer was to leave it uncategorized, which is the bug
+   * this fixes.
+   *
+   * Lazy rather than seed-time because existing users already lack the row
+   * and would otherwise need a backfill migration to get it.
+   *
+   * This item is invisible to every budget total: isSystemCategory() filters
+   * it out of activeIncome/activeMonthly/activeAnnual above, so it cannot
+   * shift budgeted, actual, net or savings rate. It exists purely as an
+   * assignment target.
+   */
+  async function ensureTransferItem() {
+    const sysCat = categories.find(c => c.is_system)
+    if (!sysCat) return { error: new Error('No system category found'), data: null }
+
+    const existing = monthly.find(m => m.category_id === sysCat.id)
+    if (existing) return { error: null, data: existing }
+
+    const { data, error } = await supabase
+      .from('expense_items')
+      .insert({
+        user_id:     user.id,
+        label:       sysCat.name,
+        category_id: sysCat.id,
+        note:        '',
+        frequency:   'monthly',
+        enabled:     true,
+        sort_order:  999,
+      })
+      .select()
+      .single()
+    if (error) return { error, data: null }
+
+    setMonthly(prev => [...prev, { ...data, budgeted: 0, actual: 0, period_item_id: null }])
+    if (periods) await periods.ensurePeriodItem(data.id, 'expense', 'monthly')
+    return { error: null, data }
+  }
+
   // ── Totals — system categories excluded ────────────────────────────────────
   const activeIncome  = incomeWithPeriod.filter(r => r.enabled !== false && !isSystemCategory(r, categories))
   const activeMonthly = monthlyWithPeriod.filter(r => r.enabled !== false && !isSystemCategory(r, categories))
@@ -271,6 +318,7 @@ export function useBudget(periods) {
     updateMonthly, addMonthly, deleteMonthly,
     updateAnnual, addAnnual, deleteAnnual,
     updateCategory, addCategory, deleteCategory,
+    ensureTransferItem,
     totals: {
       budgetedIncome: totalBudgetedIncome, actualIncome: totalActualIncome,
       budgetedMonthly: totalBudgetedMonthly, actualMonthly: totalActualMonthly,

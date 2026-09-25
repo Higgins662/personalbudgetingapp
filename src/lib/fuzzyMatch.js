@@ -175,7 +175,8 @@ export function findGlobalSuggestion(description, globalPatterns) {
  * @param {Array} globalPatterns  — global_payee_patterns rows (read-only)
  * @param {number} threshold      — fuzzy match threshold (default 0.4)
  */
-export function autoMatch(transactions, expenseItems, personalRules = [], globalPatterns = [], threshold = 0.4) {
+export function autoMatch(transactions, expenseItems, personalRules = [], globalPatterns = [], threshold = 0.4,
+                          systemCategoryIds = new Set()) {
   return transactions.map(tx => {
     if (tx.matched_expense_id || tx.ignored || tx.amount >= 0) return tx
 
@@ -185,11 +186,16 @@ export function autoMatch(transactions, expenseItems, personalRules = [], global
       // Confirm the referenced expense item still exists
       const item = expenseItems.find(e => e.id === rule.expense_item_id)
       if (item) {
+        // A rule learned from a manual 'Transfers & Payments' assignment
+        // must re-apply the ignored flag too, not just the match. Otherwise
+        // the transfer the user excluded last month silently returns as a
+        // budget expense the next time the same payee appears.
         return {
           ...tx,
           matched_expense_id: item.id,
           matched_score: 1,
           matched_source: 'rule',
+          ignored: systemCategoryIds.has(item.category_id) ? true : tx.ignored,
         }
       }
     }

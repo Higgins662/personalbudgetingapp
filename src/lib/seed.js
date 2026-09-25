@@ -4,18 +4,42 @@ import { DEFAULT_CATEGORIES, DEFAULT_INCOME, DEFAULT_MONTHLY_EXPENSES } from './
 import { DEFAULT_GOALS } from './goalSeedData'
 
 /**
- * Seed the 17 default categories for a new user.
+ * Seed the default categories for a new user.
  * Always called — both CSV and fallback paths need categories.
  * Returns { catMap: { name → id }, error }.
+ *
+ * Idempotent by (user_id, name). This used to be a plain .insert(), which
+ * meant every re-entry into onboarding appended another complete set of
+ * categories — one user accumulated 22 copies of 'Transfers & Payments'
+ * before it was noticed (see supabase-dedup-categories-v2.sql). A unique
+ * index now enforces (user_id, name), so a plain insert would raise here
+ * instead of duplicating; upserting keeps onboarding re-runnable, which is
+ * the behaviour the three call sites have always assumed.
+ *
+ * onConflict ignoreDuplicates skips existing rows rather than overwriting
+ * them, so a user's own edits (renamed colour, recurring_kind, enabled) are
+ * never clobbered by a re-run. Because skipped rows aren't returned, the
+ * catMap is built from a follow-up SELECT of everything this user has
+ * rather than from the upsert's own result — callers depend on the map
+ * covering every default name, not just the freshly-inserted ones.
  */
 export async function seedCategories(userId) {
-  const { data: cats, error } = await supabase
+  const { error } = await supabase
     .from('categories')
-    .insert(DEFAULT_CATEGORIES.map(c => ({ ...c, user_id: userId })))
-    .select('id, name')
+    .upsert(
+      DEFAULT_CATEGORIES.map(c => ({ ...c, user_id: userId })),
+      { onConflict: 'user_id,name', ignoreDuplicates: true }
+    )
 
   if (error) return { catMap: {}, error }
-  const catMap = Object.fromEntries(cats.map(c => [c.name, c.id]))
+
+  const { data: cats, error: selErr } = await supabase
+    .from('categories')
+    .select('id, name')
+    .eq('user_id', userId)
+
+  if (selErr) return { catMap: {}, error: selErr }
+  const catMap = Object.fromEntries((cats ?? []).map(c => [c.name, c.id]))
   return { catMap, error: null }
 }
 

@@ -13,6 +13,19 @@
  * Each entry is a substring to search for in the normalized description.
  * All matching is case-insensitive.
  */
+// SCOPE: this list is only for credit card payments and transfers between
+// the user's own accounts — money that moves without being spent. P2P sends
+// (Venmo, Zelle, Apple Cash, Cash App) and payment rails (PayPal) are
+// deliberately NOT here: a Venmo send is real money leaving the budget, and
+// PayPal is how a Hulu or GoDaddy charge arrives, not what it is. Excluding
+// either would hide genuine spending.
+//
+// Match on the ISSUER or the transfer itself, never on the payment mechanism.
+// Bare rails ('internet payment', 'ach debit') look tempting but are worthless
+// as signals — measured against a real Truist statement, 'internet payment'
+// matched 15 rows of which only 4 were in scope (it also catches PayPal, Venmo
+// and a Comporium phone bill), and 'ach debit' caught two utility bills paid
+// by ACH. The issuer name is what actually distinguishes a card payment.
 const TRANSFER_PATTERNS = [
   // Generic payment keywords
   'payment thank you',
@@ -27,14 +40,23 @@ const TRANSFER_PATTERNS = [
   'epayment',
   'e-payment',
   'web payment',
-  'phone payment',
   'minimum payment',
   'min payment',
+  // 'phone payment' was removed: matching is plain substring, so it fires on
+  // "TELE(PHONE PAYMENT)" and swept a City of Rock Hill utility bill into the
+  // exclusion list. Paying a card by phone is rare enough not to be worth a
+  // rule that misfiles a real bill.
 
   // Credit card issuer patterns
+  'crcardpmt',             // Truist's prefix for a card payment
+  'credit crd',
+  'credit card payment',
+  'creditcard payment',
+  'cardmember serv',
   'chase credit crd',
   'chase card',
   'citi payment',
+  'citi autopay',
   'citi card',
   'citibank payment',
   'amex payment',
@@ -43,23 +65,27 @@ const TRANSFER_PATTERNS = [
   'bank of america card',
   'boa card',
   'capital one payment',
+  'crcardpmt capital one', // Truist writes 'CRCARDPMT CAPITAL ONE <ref>'
   'barclays payment',
   'synchrony payment',
   'wells fargo card',
   'us bank card',
   'navy federal',          // common credit union transfers
   'usaa payment',
+  'applecard',             // Apple Card (one word in GS Bank descriptions)
+  'apple card',
+  'gsbank',                // Goldman Sachs, the Apple Card issuer
 
-  // Transfer keywords
+  // Transfer keywords — between the user's OWN accounts
   'transfer to',
   'transfer from',
   'online transfer',
   'acct transfer',
   'account transfer',
   'internal transfer',
-  'zelle to',
-  'zelle from',
   'mobile transfer',
+  'mobile from',           // 'MOBILE FROM ****9623 - TRUIST ONLINE TRANSFER'
+  'mobile to',
 
   // Loan / mortgage payments
   'loan payment',

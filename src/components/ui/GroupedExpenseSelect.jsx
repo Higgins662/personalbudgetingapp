@@ -23,11 +23,24 @@
  * category is a no-op instead of silently blanking out) — except in the
  * all-annual case, where the specific matched item is shown selected.
  *
+ * System categories ('Transfers & Payments') are pulled out of the normal
+ * list and offered last, under a separator. A credit card payment or
+ * inter-account transfer is not a budget expense, but it still has to be
+ * assignable — transfer detection is heuristic (~30 patterns) and the ones
+ * it misses arrive here needing somewhere to go. Before this, T&P had no
+ * expense_item at all and so appeared nowhere, and the only way to file a
+ * missed transfer was to leave it uncategorized. Assigning to it marks the
+ * transaction ignored (see onChange contract below) so it stays out of
+ * budget totals, which is what 'uncategorized' was being used to fake.
+ *
  * Props:
  *   allExpenses  — [...monthly, ...annual] with category_id
  *   categories   — full category list for grouping labels
  *   value        — currently selected expense item id
- *   onChange     — (expenseItemId) => void
+ *   onChange     — (expenseItemId, { isTransfer }) => void
+ *                  isTransfer is true when the chosen item belongs to a
+ *                  system category; callers should mark the transaction
+ *                  ignored so it never reaches budget actuals.
  *   placeholder  — optional string (default "Select budget item…")
  */
 export default function GroupedExpenseSelect({
@@ -43,13 +56,19 @@ export default function GroupedExpenseSelect({
   const catById   = Object.fromEntries((categories ?? []).map(c => [c.id,   c]))
   const catByName = Object.fromEntries((categories ?? []).map(c => [c.name, c]))
 
+  // System-category items are held back and appended after a separator, so
+  // 'Transfers & Payments' reads as the deliberate non-budget choice it is
+  // rather than sitting alphabetically among real spending categories.
+  const systemItems = []
   const groups = {}
   for (const exp of allExpenses) {
     const cat = catById[exp.category_id] ?? catByName[exp.category_name] ?? null
+    if (cat?.is_system) { systemItems.push({ exp, cat }); continue }
     const key = cat?.name ?? 'Uncategorized'
     if (!groups[key]) groups[key] = { color: cat?.color, items: [] }
     groups[key].items.push(exp)
   }
+  const systemIds = new Set(systemItems.map(({ exp }) => exp.id))
 
   // Sort groups by category sort_order, then items alphabetically within
   const sortedGroups = Object.entries(groups).sort(([a], [b]) => {
@@ -85,7 +104,10 @@ export default function GroupedExpenseSelect({
     <select
       className="cell-select grouped-expense-select"
       value={displayValue}
-      onChange={e => e.target.value && onChange(e.target.value)}
+      onChange={e => {
+        const id = e.target.value
+        if (id) onChange(id, { isTransfer: systemIds.has(id) })
+      }}
     >
       <option value="" disabled>{placeholder}</option>
       {sortedGroups.map(([groupName, group]) => {
@@ -106,6 +128,15 @@ export default function GroupedExpenseSelect({
           </optgroup>
         )
       })}
+      {systemItems.length > 0 && (
+        <optgroup label="Not a budget expense">
+          {systemItems.map(({ exp }) => (
+            <option key={exp.id} value={exp.id}>
+              Transfers &amp; Payments — excluded from budget
+            </option>
+          ))}
+        </optgroup>
+      )}
     </select>
   )
 }

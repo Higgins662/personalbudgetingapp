@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
 import { parseCSV, getCSVHeaders, extractTransactions, guessColMap } from '../../lib/csvParser'
 import { autoMatch, matchIncomeTransactions } from '../../lib/fuzzyMatch'
 import { fmt } from '../../lib/format'
@@ -26,7 +26,8 @@ function needsAttention(tx) {
 }
 
 export default function ImportWizard({ budget, transactions: txHook, periods, onClose }) {
-  const { monthly, annual, income, categories, addIncome, loading: budgetLoading, reload: reloadBudget } = budget
+  const { monthly, annual, income, categories, addIncome, ensureTransferItem,
+          loading: budgetLoading, reload: reloadBudget } = budget
   const { bankAccounts, transactions, insertTransactions, updateBankAccount, addBankAccount,
           loading: txLoading, reload: reloadTx } = txHook
   const { user }                              = useAuth()
@@ -54,6 +55,15 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
 
   const allExpenses = [...monthly, ...annual]
 
+  // Make sure the Transfers & Payments budget item exists before the user
+  // reaches the preview, so it's offerable in the assign dropdown. It's
+  // created lazily (see useBudget.ensureTransferItem) because existing users
+  // were seeded without one — system categories are skipped by the
+  // seed-time backfill, which is what left T&P unassignable.
+  useEffect(() => {
+    if (!budgetLoading && categories.length) ensureTransferItem?.()
+  }, [budgetLoading, categories.length, ensureTransferItem])
+
   /** Needs-attention rows first, then everything else, each group
    *  newest-first. Computed once when the preview is built (see
    *  handleBuildPreview) rather than on every edit, so a row doesn't jump
@@ -70,9 +80,6 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
         return (rows[b].date ?? '').localeCompare(rows[a].date ?? '')
       })
   }
-
-  const transferCategoryId = useMemo(() =>
-    categories.find(c => c.is_system)?.id ?? null, [categories])
 
   // Already imported this period detection
   const importedThisPeriod = useMemo(() => {
@@ -148,6 +155,14 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
     reader.readAsText(file)
   }
 
+  // Ids of system categories, so a rule learned from a manual
+  // 'Transfers & Payments' assignment re-applies the ignored flag on
+  // re-import instead of silently returning as a budget expense.
+  const systemCategoryIds = useMemo(
+    () => new Set((categories ?? []).filter(c => c.is_system).map(c => c.id)),
+    [categories]
+  )
+
   function handleBuildPreview() {
     const splitMode = colMap.amountSign === 'split'
     if (!colMap.dateCol || !colMap.descCol) {
@@ -166,7 +181,7 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
     const txNormal     = tagged.filter(t => !t.likelyTransfer)
     setTransfers(txTransfers)
     setExcludedTransfers(new Set(txTransfers.map((_, i) => i)))
-    const matchedExpenses = autoMatch(txNormal, allExpenses, personalRules, globalPatterns)
+    const matchedExpenses = autoMatch(txNormal, allExpenses, personalRules, globalPatterns, 0.4, systemCategoryIds)
     const matched = matchIncomeTransactions(matchedExpenses, income)
     setPreview(matched)
     setPreviewOrder(sortPreviewIndices(matched))
@@ -174,11 +189,16 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
     setStage('preview'); setError('')
   }
 
-  async function handleAssignMatch(index, expenseItemId) {
+  async function handleAssignMatch(index, expenseItemId, { isTransfer = false } = {}) {
     const tx          = preview[index]
     const expenseItem = allExpenses.find(e => e.id === expenseItemId)
+    // Assigning to Transfers & Payments marks the row ignored, so it imports
+    // as a recorded-but-excluded transaction the way auto-detected transfers
+    // do, instead of landing in budget actuals. handleSave already ORs
+    // t.ignored into the inserted row, so nothing else needs to change.
     setPreview(prev => prev.map((t, i) => i === index
       ? { ...t, matched_expense_id: expenseItemId, matched_score: 1, matched_source: 'manual',
+          ignored: isTransfer,
           suggested_category_name: undefined } : t))
     if (expenseItem) {
       learnRule(tx.description, expenseItemId)
@@ -317,7 +337,9 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
   const fuzzyMatchCount = preview.filter(t => t.matched_source === 'fuzzy').length
   const suggestionCount = preview.filter(t => t.matched_source === 'global').length
   const unappliedCount  = transactions.filter(t => !t.applied && !t.ignored && t.matched_expense_id).length
-  const budgetCategories = categories.filter(c => !c.is_system)
+  // Full list (system categories included) — GroupedExpenseSelect needs to
+  // see the system category so it can offer 'Transfers & Payments' as the
+  // deliberate non-budget target; it segregates them itself.
 
   return (
     <div className="fadein import-wizard-overlay">
@@ -580,9 +602,9 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
                         <div className="rec-tx-assign">
                           <GroupedExpenseSelect
                             allExpenses={allExpenses}
-                            categories={budgetCategories}
+                            categories={categories}
                             value={tx.matched_expense_id ?? ''}
-                            onChange={id => handleAssignMatch(i, id)}
+                            onChange={(id, opts) => handleAssignMatch(i, id, opts)}
                             placeholder="Choose category…"
                           />
                           <label className="rec-tx-yearly-label" title={tx.matched_expense_id ? 'Track as its own yearly line instead of monthly' : 'Choose a category first'}>
