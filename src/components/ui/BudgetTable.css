@@ -115,6 +115,19 @@
   white-space: nowrap;
 }
 
+/* ── Due date cell ── */
+.due-cell {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+.due-month-select { width: auto; min-width: 72px; }
+.due-suggested {
+  color: var(--ink3);
+  font-style: italic;
+}
+
 /* ── Row enable/disable toggle (smaller than the category toggle) ── */
 .row-toggle {
   display: inline-flex;

@@ -51,6 +51,19 @@ export default function CategoriesPage({ budget }) {
               <div className="cat-card-body">
                 <EditableCell value={cat.name} onSave={v => updateCategory(cat.id, 'name', v)} className="cat-card-name" />
                 <EditableCell value={cat.description || ''} onSave={v => updateCategory(cat.id, 'description', v)} className="cat-card-desc" />
+                <label className="cat-kind">
+                  <span className="cat-kind-label">On calendar</span>
+                  <select
+                    className="cell-select"
+                    value={cat.recurring_kind || 'neutral'}
+                    onChange={e => updateCategory(cat.id, 'recurring_kind', e.target.value)}
+                    title="Whether charges in this category can appear on the Calendar as recurring bills"
+                  >
+                    <option value="recurring">Usually bills</option>
+                    <option value="neutral">Auto-detect</option>
+                    <option value="everyday">Never (everyday spending)</option>
+                  </select>
+                </label>
               </div>
               <div className="cat-card-actions">
                 <button className="del-btn" onClick={() => deleteCategory(cat.id)} title="Delete category">×</button>

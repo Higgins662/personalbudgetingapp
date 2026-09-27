@@ -7,6 +7,7 @@ export const TABS = [
   { id: 'income',       label: 'Income',                 icon: '💵' },
   { id: 'monthly',      label: 'Monthly Expenses',       icon: '📅' },
   { id: 'annual',       label: 'Yearly Subscriptions',   icon: '🔁' },
+  { id: 'calendar',     label: 'Calendar',               icon: '🗓️' },
   { id: 'goals',        label: 'Savings Goals',          icon: '🎯' },
   { id: 'categories',   label: 'Categories & Colors',    icon: '🏷️' },
   { id: 'transactions', label: 'Transactions',           icon: '🧾' },

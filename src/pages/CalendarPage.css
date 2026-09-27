@@ -1,0 +1,353 @@
+.cal-section {
+  padding: 1.5rem;
+}
+
+/* Income / due / net, side by side. auto-fit keeps them from stretching the
+   full page width on a wide screen and collapses to one column on a phone. */
+.cal-summary-wrap {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: .75rem;
+  max-width: 720px;
+}
+/* Keep the values on a common baseline if one label wraps to two lines. */
+.cal-summary-wrap .scard {
+  display: flex;
+  flex-direction: column;
+}
+.cal-summary-wrap .slabel { min-height: 2.1em; }
+
+@media (max-width: 480px) {
+  .cal-summary-wrap { grid-template-columns: 1fr; max-width: none; }
+  .cal-summary-wrap .slabel { min-height: 0; }
+}
+
+/* ── "Needs a due date" list ── */
+.cal-needs-list {
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+}
+.cal-needs-row {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  flex-wrap: wrap;
+  padding: .5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.cal-needs-row:last-child { border-bottom: none; }
+.cal-cat-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.cal-needs-label {
+  flex: 1;
+  min-width: 120px;
+  font-size: .875rem;
+}
+
+/* ── Desktop month grid ── */
+/* No overflow clipping here: the grid's minmax(0,1fr) tracks already keep it
+   within the page width, and any overflow rule would create a scroll
+   container that clips the badge hover flyouts. */
+.cal-grid-wrap { overflow: visible; }
+
+.cal-weekday-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  margin-bottom: .5rem;
+}
+.cal-weekday {
+  text-align: center;
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  padding: .3rem 0;
+}
+
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.cal-day {
+  position: relative;
+  min-width: 0;
+  min-height: 84px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: .35rem;
+  background: var(--card);
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+}
+.cal-day-empty {
+  background: var(--card2);
+  border-style: dashed;
+}
+.cal-day-today {
+  border-color: var(--blue);
+  border-width: 2px;
+  background: var(--blue-lt);
+}
+.cal-day-num {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--ink2);
+}
+.cal-day-entries {
+  display: flex;
+  flex-direction: column;
+  gap: .2rem;
+}
+.cal-day-more {
+  background: none;
+  border: none;
+  color: var(--blue);
+  font-size: .68rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  padding: .1rem 0;
+}
+.cal-day-more-list {
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+}
+
+@media (max-width: 640px) {
+  .cal-grid-wrap { display: none; }
+}
+
+/* ── Due-date badge (shared by grid cells and mobile agenda) ── */
+.due-date-badge {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  min-width: 0;
+  padding: .15rem .4rem;
+  border-radius: 4px;
+  border: 1px solid;
+  font-size: .68rem;
+  font-weight: 600;
+  overflow: hidden;
+}
+.due-date-badge-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.due-date-badge-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.due-date-badge-amt {
+  flex-shrink: 0;
+  font-family: 'DM Mono', monospace;
+}
+.due-date-badge-past { opacity: .5; }
+.due-date-badge-suggested { border-style: dashed; }
+
+/* ── Hover flyout ──
+   Day cells are too narrow to read a full merchant description, so the
+   badge label is always truncated and the detail lives here. The wrapper
+   raises its own stacking order while hovered so the flyout paints over
+   neighbouring day cells instead of under them. */
+.due-date-badge-wrap { position: relative; }
+.due-date-badge-wrap.is-hovered { z-index: 40; }
+.due-date-badge-wrap .due-date-badge { cursor: default; }
+
+.due-flyout {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 210px;
+  max-width: 280px;
+  padding: .6rem .7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .16);
+  white-space: normal;
+  pointer-events: none; /* never steal the hover from the badge itself */
+}
+/* Flip to the right edge in the last columns so it can't overflow the grid. */
+.cal-day:nth-child(7n) .due-flyout,
+.cal-day:nth-child(7n - 1) .due-flyout { left: auto; right: 0; }
+/* Flip above for the last row, where there's no space below. */
+.cal-grid > .cal-day:nth-last-child(-n + 7) .due-flyout {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.due-flyout-label {
+  font-size: .78rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink);
+  word-break: break-word;
+}
+.due-flyout-amt {
+  font-family: 'DM Mono', monospace;
+  font-size: .95rem;
+  font-weight: 700;
+  margin-top: .2rem;
+}
+.due-flyout-meta {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  flex-wrap: wrap;
+  margin-top: .4rem;
+}
+.due-flyout-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .1rem .4rem;
+  border: 1px solid;
+  border-radius: 4px;
+  font-size: .68rem;
+  font-weight: 600;
+}
+.due-flyout-cycle {
+  font-size: .68rem;
+  color: var(--ink3);
+}
+.due-flyout-note {
+  margin-top: .4rem;
+  padding-top: .35rem;
+  border-top: 1px solid var(--border);
+  font-size: .66rem;
+  color: var(--ink3);
+  line-height: 1.5;
+}
+
+/* The agenda list isn't width-constrained, so it needs no flyout. */
+.cal-agenda .due-flyout { display: none; }
+
+/* ── Mobile agenda ── */
+.cal-agenda { display: none; }
+
+@media (max-width: 640px) {
+  .cal-agenda { display: block; }
+  .cal-agenda-day {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: .75rem;
+    margin-bottom: .75rem;
+  }
+  .cal-agenda-day-hdr {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--ink2);
+    margin-bottom: .5rem;
+  }
+  .cal-today-tag {
+    font-size: .65rem;
+    font-weight: 600;
+    color: var(--blue);
+    background: var(--blue-lt);
+    border: 1px solid var(--blue-bd);
+    border-radius: 999px;
+    padding: .1rem .5rem;
+  }
+  .cal-agenda-day .due-date-badge { margin-bottom: .3rem; }
+  .cal-agenda-day .due-date-badge:last-child { margin-bottom: 0; }
+}
+
+/* ── Category legend ──
+   Which categories the recurrence detector considers. Makes the 'everyday'
+   veto visible, so a bill filed in the wrong category can be spotted. */
+.cal-legend {
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+}
+.cal-legend-hdr {
+  display: flex;
+  align-items: baseline;
+  gap: .5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.cal-legend-title {
+  font-size: .9rem;
+  font-weight: 600;
+  color: var(--ink2);
+}
+.cal-legend-hint {
+  font-size: .78rem;
+  color: var(--ink3);
+}
+.cal-legend-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--blue);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.cal-legend-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1rem;
+}
+.cal-legend-group {
+  padding: .75rem .85rem;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--card);
+}
+.cal-legend-recurring { border-left-color: var(--green); }
+.cal-legend-neutral   { border-left-color: var(--ink3); }
+.cal-legend-everyday  { border-left-color: var(--red); }
+
+.cal-legend-group-title {
+  font-size: .78rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.cal-legend-group-hint {
+  font-size: .72rem;
+  color: var(--ink3);
+  line-height: 1.45;
+  margin: .15rem 0 .55rem;
+}
+.cal-legend-cats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .3rem;
+}
+.cal-legend-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .1rem .4rem;
+  border: 1px solid;
+  border-radius: 4px;
+  font-size: .68rem;
+  font-weight: 600;
+}
+.cal-legend-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}

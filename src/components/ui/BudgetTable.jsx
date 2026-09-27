@@ -6,10 +6,39 @@ import FlagBadge from '../ui/FlagBadge'
 import { fmt } from '../../lib/format'
 import './BudgetTable.css'
 
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+function ordinal(n) {
+  const v = n % 100
+  if (v >= 11 && v <= 13) return `${n}th`
+  switch (n % 10) {
+    case 1: return `${n}st`
+    case 2: return `${n}nd`
+    case 3: return `${n}rd`
+    default: return `${n}th`
+  }
+}
+
+/** Most recent matched, non-ignored transaction's day-of-month for this
+ *  item — used as a suggested (never auto-saved) due day default.
+ *
+ *  Expenses link through matched_expense_id and income through
+ *  matched_income_id, so both are checked: this component renders the due
+ *  column for annual expenses (AnnualPage) and income sources (IncomePage)
+ *  alike, and testing only the expense FK left income with no suggestion. */
+function suggestedDueDay(itemId, transactions) {
+  const matches = (transactions ?? []).filter(t =>
+    !t.ignored && (t.matched_expense_id === itemId || t.matched_income_id === itemId))
+  if (!matches.length) return null
+  const latest = matches.reduce((a, b) => (a.date > b.date ? a : b))
+  return new Date(latest.date + 'T12:00:00').getDate()
+}
+
 export default function BudgetTable({
   rows = [],
   categories = [],
   bankAccounts = [],
+  transactions = [],
   onUpdate,
   onAdd,
   onDelete,
@@ -18,6 +47,8 @@ export default function BudgetTable({
   showLabel = true,
   showPaymentMethod = false,
   showFrequency = false,
+  showDueDay = false,
+  showDueMonth = false,
   paymentMethodLabel = 'Payment Method',
   showNote = true,
   isIncome = false,
@@ -54,6 +85,7 @@ export default function BudgetTable({
     + (showLabel ? 1 : 0)
     + (showCategory ? 1 : 0)
     + (showPaymentMethod ? 1 : 0)
+    + (showDueDay || showDueMonth ? 1 : 0)
     + (showNote ? 1 : 0)
     + 2 // toggle + delete
 
@@ -68,6 +100,7 @@ export default function BudgetTable({
               {showLabel && <th style={{ width: '28%' }}>Description</th>}
               {showCategory && <th>Category</th>}
               {showPaymentMethod && <th>{paymentMethodLabel}</th>}
+              {(showDueDay || showDueMonth) && <th>Due</th>}
               <th className="r">Budgeted</th>
               <th className="r">Actual</th>
               <th className="r">Difference</th>
@@ -88,6 +121,9 @@ export default function BudgetTable({
               const diff = isIncome
                 ? (row.actual || 0) - (row.budgeted || 0)
                 : (row.budgeted || 0) - (row.actual || 0)
+              const dueSuggestion = (showDueDay || showDueMonth) && !row.due_day
+                ? suggestedDueDay(row.id, transactions)
+                : null
               return (
                 <tr key={row.id} className={enabled ? '' : 'row-disabled'}>
                   <td>
@@ -124,6 +160,35 @@ export default function BudgetTable({
                         bankAccounts={bankAccounts}
                         onSelect={id => onUpdate(row.id, 'bank_account_id', id)}
                       />
+                    </td>
+                  )}
+                  {(showDueDay || showDueMonth) && (
+                    <td>
+                      <div className="due-cell">
+                        {showDueMonth && (
+                          <select
+                            className="cell-select due-month-select"
+                            value={row.due_month ?? ''}
+                            onChange={e => onUpdate(row.id, 'due_month', e.target.value ? parseInt(e.target.value, 10) : null)}
+                          >
+                            <option value="">Month</option>
+                            {MONTH_NAMES.map((m, i) => (
+                              <option key={m} value={i + 1}>{m}</option>
+                            ))}
+                          </select>
+                        )}
+                        <EditableCell
+                          type="day"
+                          value={row.due_day ?? null}
+                          emptyDraft={dueSuggestion}
+                          onSave={v => onUpdate(row.id, 'due_day', v)}
+                          display={d => d
+                            ? `Due ${ordinal(d)}`
+                            : dueSuggestion
+                              ? <span className="due-suggested">Suggested: {ordinal(dueSuggestion)}</span>
+                              : 'Set due day'}
+                        />
+                      </div>
                     </td>
                   )}
                   <td className="r">
@@ -179,6 +244,7 @@ export default function BudgetTable({
                 )}
               </td>
               {showPaymentMethod && <td />}
+              {(showDueDay || showDueMonth) && <td />}
               <td className="r">{fmt(totalBudgeted)}</td>
               <td className="r">{fmt(totalActual)}</td>
               <td className="r">
@@ -222,6 +288,9 @@ export default function BudgetTable({
               readOnlyCategory={readOnlyCategory}
               showPaymentMethod={showPaymentMethod}
               showFrequency={showFrequency}
+              showDueDay={showDueDay}
+              showDueMonth={showDueMonth}
+              transactions={transactions}
               paymentMethodLabel={paymentMethodLabel}
               onUpdate={onUpdate}
               onDelete={onDelete}
@@ -323,7 +392,8 @@ function RowToggle({ enabled, onChange }) {
 }
 
 function MobileRow({ row, diff, enabled, categories, bankAccounts, showCategory,
-                     readOnlyCategory, showPaymentMethod, showFrequency, paymentMethodLabel, onUpdate, onDelete }) {
+                     readOnlyCategory, showPaymentMethod, showFrequency, showDueDay, showDueMonth,
+                     transactions, paymentMethodLabel, onUpdate, onDelete }) {
   const [expanded, setExpanded] = useState(false)
   const cat  = categories.find(c => c.id === row.category_id)
   const bank = bankAccounts.find(b => b.id === row.bank_account_id)
@@ -378,6 +448,39 @@ function MobileRow({ row, diff, enabled, categories, bankAccounts, showCategory,
               </button>
             </div>
           )}
+          {(showDueDay || showDueMonth) && (() => {
+            const dueSuggestion = !row.due_day ? suggestedDueDay(row.id, transactions) : null
+            return (
+              <div className="mob-detail-row">
+                <span>Due date</span>
+                <div className="due-cell">
+                  {showDueMonth && (
+                    <select
+                      className="cell-select due-month-select"
+                      value={row.due_month ?? ''}
+                      onChange={e => onUpdate(row.id, 'due_month', e.target.value ? parseInt(e.target.value, 10) : null)}
+                    >
+                      <option value="">Month</option>
+                      {MONTH_NAMES.map((m, i) => (
+                        <option key={m} value={i + 1}>{m}</option>
+                      ))}
+                    </select>
+                  )}
+                  <EditableCell
+                    type="day"
+                    value={row.due_day ?? null}
+                    emptyDraft={dueSuggestion}
+                    onSave={v => onUpdate(row.id, 'due_day', v)}
+                    display={d => d
+                      ? `Due ${ordinal(d)}`
+                      : dueSuggestion
+                        ? <span className="due-suggested">Suggested: {ordinal(dueSuggestion)}</span>
+                        : 'Set due day'}
+                  />
+                </div>
+              </div>
+            )
+          })()}
           <div className="mob-detail-row">
             <span>Note</span>
             <EditableCell value={row.note || ''} onSave={v => onUpdate(row.id, 'note', v)} />

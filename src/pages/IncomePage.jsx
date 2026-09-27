@@ -34,11 +34,13 @@ export default function IncomePage({ budget, transactions, periods, onTabChange 
           rows={visibleIncome}
           categories={categories}
           bankAccounts={bankAccounts}
+          transactions={transactions?.transactions ?? []}
           onUpdate={updateIncome}
           onAdd={addIncome}
           onDelete={deleteIncome}
           showCategory={false}
           showPaymentMethod
+          showDueDay
           paymentMethodLabel="Deposit Account"
           isIncome
           addLabel="+ Add income source"

@@ -40,10 +40,12 @@ export default function AnnualPage({ budget, transactions, periods }) {
           rows={visibleAnnual}
           categories={categories}
           bankAccounts={bankAccounts}
+          transactions={transactions?.transactions ?? []}
           onUpdate={updateAnnual}
           onAdd={addAnnual}
           onDelete={deleteAnnual}
           showFrequency
+          showDueMonth
           addLabel="+ Add annual expense"
           emptyMessage="No annual expenses yet."
         />

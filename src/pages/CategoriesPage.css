@@ -55,6 +55,21 @@
   font-style: italic;
 }
 
+/* Whether the Calendar may treat charges here as recurring bills. */
+.cat-kind {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  margin-top: .35rem;
+}
+.cat-kind-label {
+  font-size: .7rem;
+  color: var(--ink3);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.cat-kind .cell-select { font-size: .72rem; }
+
 .cat-card-actions {
   display: flex;
   align-items: center;

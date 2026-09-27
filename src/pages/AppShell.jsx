@@ -5,6 +5,7 @@ import Dashboard from './Dashboard'
 import IncomePage from './IncomePage'
 import MonthlyPage from './MonthlyPage'
 import AnnualPage from './AnnualPage'
+import CalendarPage from './CalendarPage'
 import GoalsPage from './GoalsPage'
 import CategoriesPage from './CategoriesPage'
 import TransactionsPage from './TransactionsPage'
@@ -64,6 +65,7 @@ export default function AppShell() {
       case 'income':     return <IncomePage    budget={budget} transactions={transactions} periods={periods} onTabChange={setActiveTab} />
       case 'monthly':    return <MonthlyPage   budget={budget} transactions={transactions} periods={periods} onTabChange={setActiveTab} />
       case 'annual':     return <AnnualPage    budget={budget} transactions={transactions} periods={periods} />
+      case 'calendar':   return <CalendarPage  budget={budget} periods={periods} onTabChange={setActiveTab} />
       case 'goals':      return <GoalsPage     goalsHook={goalsHook} />
       case 'categories': return <CategoriesPage budget={budget} />
       case 'transactions': return <TransactionsPage budget={budget} transactions={transactions} periods={periods} />
