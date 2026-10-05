@@ -6,7 +6,7 @@ import { detectCycle, suggestDueDay, usesDayOfMonth, patternKey, anchorDaysOf } 
 
 // Same date-fragment shapes normalizePattern strips, used here to find WHERE
 // a description's date starts so the display label can just be everything
-// before it (e.g. "SP BEAM 05-22 SHOPBEAM.COM ..." -> "SP BEAM"), instead of
+// before it (e.g. "SP ACME 05-22 SHOPACME.COM ..." -> "SP ACME"), instead of
 // normalizePattern's own output which keeps the merchant-key tail intact.
 const DATE_FRAGMENT = /\b(\d{2}[-/]\d{2}[-/]\d{4}|\d{4}[-/]\d{2}[-/]\d{2}|\d{2}[-/]\d{2})\b/
 const NOISE_WORDS = /\b(DEBIT CARD|RECURRING PYMT|RECURRING PAYMENT|RECURRING|PURCHASE|POS PURCHASE|POS DEBIT|PYMT|ONLINE PMT|ONLINE)\b/

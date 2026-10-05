@@ -2,9 +2,17 @@
  * CSV export utilities for the data export feature.
  */
 
+// A cell starting with one of these is evaluated as a formula by Excel,
+// Sheets and LibreOffice. Transaction descriptions come from merchants, not
+// the user, so a description like "=HYPERLINK(...)" must not run when the
+// export is opened.
+const FORMULA_START = /^[=+\-@\t\r]/
+const PLAIN_NUMBER  = /^-?\d+(\.\d+)?$/
+
 /**
  * Convert an array of objects to a CSV string.
- * Handles values that contain commas, quotes, or newlines.
+ * Handles values that contain commas, quotes, or newlines, and neutralizes
+ * text that a spreadsheet would execute as a formula.
  */
 export function toCSV(rows) {
   if (!rows || !rows.length) return ''
@@ -12,8 +20,13 @@ export function toCSV(rows) {
   const headers = Object.keys(rows[0])
   const escape  = val => {
     if (val === null || val === undefined) return ''
-    const str = String(val)
-    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    let str = String(val)
+    // A leading apostrophe makes spreadsheets treat the cell as literal text.
+    // Real numbers are exempt so negative amounts (-55.00) stay numeric.
+    if (typeof val !== 'number' && FORMULA_START.test(str) && !PLAIN_NUMBER.test(str)) {
+      str = `'${str}`
+    }
+    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
       return `"${str.replace(/"/g, '""')}"`
     }
     return str

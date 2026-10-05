@@ -20,9 +20,9 @@ function norm(s) {
  *  Strips per-transaction noise (embedded dates, bank suffixes) so that
  *  recurring charges from the same merchant group together correctly.
  *  Examples:
- *    "SP BEAM 05-22 SHOPBEAM.COM MA 1808 DEBIT CARD RECURRING PYMT"
- *    "SP BEAM 06-21 SHOPBEAM.COM MA 1808 DEBIT CARD RECURRING PYMT"
- *  both normalize to: "SP BEAM SHOPBEAM.COM MA 1808"
+ *    "SP ACME 05-22 SHOPACME.COM NY 0000 DEBIT CARD RECURRING PYMT"
+ *    "SP ACME 06-21 SHOPACME.COM NY 0000 DEBIT CARD RECURRING PYMT"
+ *  both normalize to: "SP ACME SHOPACME.COM NY 0000"
  */
 export function normalizePattern(description) {
   let s = (description ?? '').toUpperCase().trim()

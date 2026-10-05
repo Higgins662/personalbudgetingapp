@@ -16,11 +16,11 @@ import { normalizePattern } from './fuzzyMatch'
  */
 
 /** Per-transaction reference numbers that normalizePattern doesn't strip —
- *  payroll week/batch ids ("PAYROLL 260709 WEEK11520675"), invoice numbers,
+ *  payroll week/batch ids ("ACME PAYROLL 123456 WEEK0000000"), invoice numbers,
  *  auth codes. Left in place they fragment one recurring stream into a
  *  separate single-occurrence group per transaction, so nothing ever looks
  *  recurring. Any run of 4+ digits (optionally glued to a word like
- *  WEEK11520675) is treated as such a reference. */
+ *  WEEK0000000) is treated as such a reference. */
 const REFERENCE_NUMBER = /\b[A-Z]*\d{4,}[A-Z0-9]*\b/g
 
 /**
@@ -43,8 +43,8 @@ function commonPrefixWords(a, b) {
  * Merge keys that are the same stream described inconsistently.
  *
  * Banks append things to a description unpredictably — the same payroll
- * deposit arrives as "CHARTER COMMUNIC PAYROLL" one fortnight and
- * "CHARTER COMMUNIC PAYROLL Higginbotham Eric" the next. Since the variable
+ * deposit arrives as "ACME CORP PAYROLL" one fortnight and
+ * "ACME CORP PAYROLL Jane Doe" the next. Since the variable
  * part is always trailing, a key that is a strict word-prefix of another is
  * the same stream, and both collapse onto the shorter one.
  *

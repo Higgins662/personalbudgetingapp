@@ -4,8 +4,8 @@
 -- payee_rules drives auto-matching for future imports via findPersonalRule,
 -- whose containment test (nd.includes(np)) means a SHORT pattern matches any
 -- transaction containing it. The Calendar's grouping key is deliberately
--- aggressive — it strips reference numbers, so "CHARTER COMMUNIC PAYROLL
--- 260709 WEEK11520675" becomes "CHARTER COMMUNIC PAYROLL" — so writing those
+-- aggressive — it strips reference numbers, so "ACME CORP PAYROLL
+-- 123456 WEEK0000000" becomes "ACME CORP PAYROLL" — so writing those
 -- keys into payee_rules would silently hijack unrelated transactions and
 -- assign them with matched_source 'rule' at full confidence.
 --

@@ -11,8 +11,8 @@
 --
 -- Design:
 --   merchant_key()        reduces a description to its merchant words only
---                         (PURCHASE AUTHORIZED ON 0522 MAVIS12345 ROCK HILL SC
---                         S4620... -> MAVIS). Measured on real data it gives
+--                         (PURCHASE AUTHORIZED ON 0522 ACMETIRE12345 SPRINGFIELD IL
+--                         S0000... -> ACMETIRE). Measured on real data it gives
 --                         MORE correct suggestions than the raw descriptions
 --                         did: personal details never helped matching.
 --   is_personal_payment() P2P, own-account transfers, checks, deposits, ATM
@@ -70,7 +70,7 @@ BEGIN
   WHILE i <= n AND coalesce(array_length(out, 1), 0) < 3 LOOP
     t := toks[i];
     EXIT WHEN t ~ '^[\d\-/.]+$' OR t ~ '#' OR t ~ 'X{3,}' OR t = ANY(states);
-    t := regexp_replace(t, '\d+', '', 'g');            -- MAVIS12345 -> MAVIS
+    t := regexp_replace(t, '\d+', '', 'g');            -- ACMETIRE12345 -> ACMETIRE
     IF t ~ '\*[A-Z]{1,6}$' AND split_part(t, '*', 1) <> ''
        AND split_part(t, '*', 1) <> ALL(procs) THEN
       t := regexp_replace(t, '\*[A-Z]{1,6}$', '');      -- MKTPL*AJJ -> MKTPL
@@ -186,7 +186,7 @@ BEGIN
     ORDER BY v.merchant_key, count(*) DESC, v.category_name
   )
   -- A stored key matches the description's key exactly or as a word prefix
-  -- (MAVIS matches MAVIS TIRE); the longest, most specific key wins.
+  -- (ACME matches ACME TIRE); the longest, most specific key wins.
   SELECT DISTINCT ON (kd.d) kd.d, b.category_name, b.annual, s.voters
   FROM keyed kd
   JOIN shared_keys s

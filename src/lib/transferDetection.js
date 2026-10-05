@@ -22,9 +22,9 @@
 //
 // Match on the ISSUER or the transfer itself, never on the payment mechanism.
 // Bare rails ('internet payment', 'ach debit') look tempting but are worthless
-// as signals — measured against a real Truist statement, 'internet payment'
+// as signals — measured against a real bank statement, 'internet payment'
 // matched 15 rows of which only 4 were in scope (it also catches PayPal, Venmo
-// and a Comporium phone bill), and 'ach debit' caught two utility bills paid
+// and a local phone bill), and 'ach debit' caught two utility bills paid
 // by ACH. The issuer name is what actually distinguishes a card payment.
 const TRANSFER_PATTERNS = [
   // Generic payment keywords
@@ -43,7 +43,7 @@ const TRANSFER_PATTERNS = [
   'minimum payment',
   'min payment',
   // 'phone payment' was removed: matching is plain substring, so it fires on
-  // "TELE(PHONE PAYMENT)" and swept a City of Rock Hill utility bill into the
+  // "TELE(PHONE PAYMENT)" and swept a city utility bill into the
   // exclusion list. Paying a card by phone is rare enough not to be worth a
   // rule that misfiles a real bill.
 
@@ -84,7 +84,7 @@ const TRANSFER_PATTERNS = [
   'account transfer',
   'internal transfer',
   'mobile transfer',
-  'mobile from',           // 'MOBILE FROM ****9623 - TRUIST ONLINE TRANSFER'
+  'mobile from',           // 'MOBILE FROM ****0000 - TRUIST ONLINE TRANSFER'
   'mobile to',
 
   // Loan / mortgage payments
