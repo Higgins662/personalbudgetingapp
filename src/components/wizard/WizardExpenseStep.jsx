@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { fmt } from '../../lib/format'
 import { groupByPayee } from '../../lib/transactionAnalysis'
-import { findBestMatch, normalizePattern } from '../../lib/fuzzyMatch'
+import { findBestMatch } from '../../lib/fuzzyMatch'
 import { randomCategoryColor } from '../../lib/transactionAnalysis'
 import './WizardSteps.css'
 
@@ -17,7 +17,7 @@ const CONFIDENCE_THRESHOLD = 0.6
  *   onChange        — (assignments) => void
  *   onAddCategory   — (newCategory) => void — parent appends to category list
  */
-export default function WizardExpenseStep({ transactions, categories, assignments, yearlyKeys, globalPatterns = [], onChange, onSetYearly, onToggleYearly, onAddCategory }) {
+export default function WizardExpenseStep({ transactions, categories, assignments, yearlyKeys, globalSuggestions = null, onChange, onSetYearly, onToggleYearly, onAddCategory }) {
   const [groups,    setGroups]    = useState([])
   const [showNew,   setShowNew]   = useState(false)
   const [newCatName, setNewCatName] = useState('')
@@ -26,23 +26,17 @@ export default function WizardExpenseStep({ transactions, categories, assignment
 
   useEffect(() => {
     if (!transactions?.length || !categories?.length) return
+    // Wait for the crowd-sourced lookup (null = still loading). Pre-filling
+    // from fuzzy matches first would lock those in: only unset keys are
+    // seeded below, so a better suggestion arriving later could never land.
+    if (globalSuggestions === null) return
     const debits = groupByPayee(transactions, 'debit')
-
-    // Build lookups: pattern → category name, and set of likely-annual patterns
-    const globalPatternMap  = {}
-    const annualPatternKeys = new Set()
-    for (const p of (globalPatterns ?? [])) {
-      if (!p.pattern) continue
-      const key = normalizePattern(p.pattern)
-      globalPatternMap[key] = p.category_name
-      if (p.likely_annual) annualPatternKeys.add(key)
-    }
 
     // Match tier 1: global payee patterns (crowd-sourced, high confidence)
     // Match tier 2: fuzzy match against category names
     const withMatches = debits.map(g => {
-      const key           = normalizePattern(g.description ?? '')
-      const globalCatName = globalPatternMap[key]
+      const suggestion    = globalSuggestions.get(g.description)
+      const globalCatName = suggestion?.category_name
       const globalCat     = globalCatName
         ? categories.find(c => c.name === globalCatName)
         : null
@@ -52,7 +46,7 @@ export default function WizardExpenseStep({ transactions, categories, assignment
         : findBestMatch(g.description, categories.map(c => ({ id: c.id, label: c.name })), CONFIDENCE_THRESHOLD) ?? null
 
       // Suggest yearly if: single occurrence OR known annual global pattern
-      const suggestYearly = g.count === 1 || annualPatternKeys.has(key)
+      const suggestYearly = g.count === 1 || !!suggestion?.likely_annual
 
       return { ...g, autoMatch: match, suggestYearly }
     })
@@ -72,23 +66,15 @@ export default function WizardExpenseStep({ transactions, categories, assignment
       }
       return changed ? next : prev
     })
-  }, [transactions, categories.length, globalPatterns]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [transactions, categories.length, globalSuggestions]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // One-shot: auto-flag likely_annual patterns when groups first load.
   // Uses a ref so this never fires again after the user has interacted —
   // preventing re-checked boxes after manual unchecks.
   React.useEffect(() => {
-    if (!groups.length || !onSetYearly || autoSetDoneRef.current) return
-    const annualKeys = new Set(
-      (globalPatterns ?? [])
-        .filter(p => p.likely_annual && p.pattern)
-        .map(p => normalizePattern(p.pattern))
-    )
-    if (!annualKeys.size) return
+    if (!groups.length || !onSetYearly || autoSetDoneRef.current || !globalSuggestions) return
     groups.forEach(g => {
-      if (annualKeys.has(normalizePattern(g.description ?? ''))) {
-        onSetYearly(g.key)
-      }
+      if (globalSuggestions.get(g.description)?.likely_annual) onSetYearly(g.key)
     })
     autoSetDoneRef.current = true
   }, [groups]) // eslint-disable-line react-hooks/exhaustive-deps

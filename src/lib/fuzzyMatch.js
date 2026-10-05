@@ -134,31 +134,6 @@ export function findPersonalRule(description, personalRules) {
 }
 
 /**
- * Find a global pattern suggestion matching this description.
- * Same containment logic as personal rules, but returns a
- * category_name (string) rather than a specific expense_item_id,
- * since global patterns aren't tied to any one user's budget items.
- *
- * @param {string} description
- * @param {Array}  globalPatterns — [{ pattern, category_name, hit_count }]
- * @returns {object|null}
- */
-export function findGlobalSuggestion(description, globalPatterns) {
-  const nd = normalizePattern(description)
-  if (!nd || !globalPatterns?.length) return null
-
-  let best = null
-  for (const p of globalPatterns) {
-    const np = normalizePattern(p.pattern)
-    if (!np) continue
-    if (nd.includes(np) || np.includes(nd)) {
-      if (!best || np.length > normalizePattern(best.pattern).length) best = p
-    }
-  }
-  return best
-}
-
-/**
  * Tiered auto-match for an array of transactions.
  *
  * For each unmatched debit transaction, tries in order:
@@ -172,10 +147,11 @@ export function findGlobalSuggestion(description, globalPatterns) {
  * @param {Array} transactions
  * @param {Array} expenseItems    — this user's monthly+annual expense items
  * @param {Array} personalRules   — this user's payee_rules rows
- * @param {Array} globalPatterns  — global_payee_patterns rows (read-only)
+ * @param {Map}   globalSuggestions — description -> suggestion, from
+ *                                  useGlobalPatterns().suggest()
  * @param {number} threshold      — fuzzy match threshold (default 0.4)
  */
-export function autoMatch(transactions, expenseItems, personalRules = [], globalPatterns = [], threshold = 0.4,
+export function autoMatch(transactions, expenseItems, personalRules = [], globalSuggestions = new Map(), threshold = 0.4,
                           systemCategoryIds = new Set()) {
   return transactions.map(tx => {
     if (tx.matched_expense_id || tx.ignored || tx.amount >= 0) return tx
@@ -201,13 +177,13 @@ export function autoMatch(transactions, expenseItems, personalRules = [], global
     }
 
     // Tier 2: global suggestion (not auto-applied — surfaced for confirmation)
-    const suggestion = findGlobalSuggestion(tx.description, globalPatterns)
+    const suggestion = globalSuggestions?.get(tx.description)
     if (suggestion) {
       return {
         ...tx,
         suggested_category_name: suggestion.category_name,
-        suggested_pattern: suggestion.pattern,
-        suggested_hit_count: suggestion.hit_count,
+        // distinct users who agree — shown as "(N users)"
+        suggested_hit_count: suggestion.contributors,
         matched_source: 'global',
       }
     }

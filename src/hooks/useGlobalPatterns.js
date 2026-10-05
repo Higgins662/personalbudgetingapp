@@ -1,39 +1,41 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { normalizePattern } from '../lib/fuzzyMatch'
 
 /**
- * Manages the anonymized, crowd-sourced global_payee_patterns table.
- * Reads are plain SELECTs (RLS allows any authenticated user to read).
- * Writes only ever go through the contribute_payee_pattern() RPC
- * function — there is no direct insert/update path from the client,
- * by design, so individual users can't tamper with the shared table.
+ * Crowd-sourced category suggestions ("Others categorize this as ...").
+ *
+ * The shared data never reaches the browser. Contributions and lookups both
+ * go through database functions that reduce a transaction description to
+ * its merchant words (no account numbers, reference ids or names), keep one
+ * vote per user per merchant, and only answer for merchants that at least
+ * two different users agree on. See supabase-shared-merchant-keys.sql.
  */
 export function useGlobalPatterns() {
-  const [patterns, setPatterns] = useState([])
-  const [loading,  setLoading]  = useState(true)
-  const [error,    setError]    = useState(null)
+  /**
+   * Look up suggestions for a batch of transaction descriptions.
+   * Resolves to a Map of description -> { category_name, likely_annual,
+   * contributors }. Suggestions are a convenience, so any failure resolves
+   * to an empty Map rather than blocking the import that asked.
+   */
+  const suggest = useCallback(async (descriptions) => {
+    const unique = [...new Set((descriptions ?? []).filter(Boolean))]
+    if (!unique.length) return new Map()
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('global_payee_patterns')
-      .select('pattern, category_name, hit_count, likely_annual')
-
-    if (error) { setError(error.message); setLoading(false); return }
-    setPatterns(data ?? [])
-    setLoading(false)
+    const { data, error } = await supabase.rpc('suggest_categories', {
+      p_descriptions: unique,
+    })
+    if (error) return new Map()
+    return new Map((data ?? []).map(row => [row.description, row]))
   }, [])
 
-  useEffect(() => { load() }, [load])
-
   /**
-   * Contribute a confirmed pattern → category pairing to the global
-   * table. Fire-and-forget from the UI's perspective — failures here
-   * shouldn't block the user's own action (e.g. saving their personal
-   * rule), so callers generally don't need to await this.
+   * Record that this user filed a description under a category. Fire-and-
+   * forget: a failure here must never block the user's own action. The
+   * server derives the merchant key, ignores personal payments (P2P,
+   * transfers, checks) and rejects categories the user doesn't have.
    */
-  async function contribute(description, categoryName, likelyAnnual = false) {
+  const contribute = useCallback(async (description, categoryName, likelyAnnual = false) => {
     const pattern = normalizePattern(description)
     if (!pattern || !categoryName) return { error: null }
 
@@ -42,27 +44,8 @@ export function useGlobalPatterns() {
       p_category_name: categoryName,
       p_likely_annual: likelyAnnual,
     })
-
-    if (!error) {
-      setPatterns(prev => {
-        const idx = prev.findIndex(p => normalizePattern(p.pattern) === pattern)
-        if (idx === -1) {
-          return [...prev, { pattern, category_name: categoryName, hit_count: 1, likely_annual: likelyAnnual }]
-        }
-        const updated  = [...prev]
-        const existing = updated[idx]
-        updated[idx] = {
-          ...existing,
-          category_name: categoryName,
-          hit_count:     (existing.hit_count || 1) + 1,
-          likely_annual: existing.likely_annual || likelyAnnual,
-        }
-        return updated
-      })
-    }
-
     return { error }
-  }
+  }, [])
 
-  return { patterns, loading, error, reload: load, contribute }
+  return { suggest, contribute }
 }

@@ -32,7 +32,7 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
           loading: txLoading, reload: reloadTx } = txHook
   const { user }                              = useAuth()
   const { rules: personalRules, learnRule }   = usePayeeRules()
-  const { patterns: globalPatterns, contribute } = useGlobalPatterns()
+  const { suggest: suggestCategories, contribute } = useGlobalPatterns()
 
   const fileRef = useRef(null)
   const [stage,        setStage]        = useState('bank')
@@ -163,7 +163,7 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
     [categories]
   )
 
-  function handleBuildPreview() {
+  async function handleBuildPreview() {
     const splitMode = colMap.amountSign === 'split'
     if (!colMap.dateCol || !colMap.descCol) {
       setError('Please select Date and Description columns.'); return
@@ -181,7 +181,10 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
     const txNormal     = tagged.filter(t => !t.likelyTransfer)
     setTransfers(txTransfers)
     setExcludedTransfers(new Set(txTransfers.map((_, i) => i)))
-    const matchedExpenses = autoMatch(txNormal, allExpenses, personalRules, globalPatterns, 0.4, systemCategoryIds)
+    // Crowd-sourced suggestions are looked up server-side; an empty Map on
+    // failure just means no 'Others categorize this as ...' hints.
+    const globalSuggestions = await suggestCategories(txNormal.map(t => t.description))
+    const matchedExpenses = autoMatch(txNormal, allExpenses, personalRules, globalSuggestions, 0.4, systemCategoryIds)
     const matched = matchIncomeTransactions(matchedExpenses, income)
     setPreview(matched)
     setPreviewOrder(sortPreviewIndices(matched))
@@ -265,7 +268,7 @@ export default function ImportWizard({ budget, transactions: txHook, periods, on
     }
 
     const normalToInsert = preview.filter(t => !t._skip)
-      .map(({ suggested_category_name, suggested_pattern, suggested_hit_count, likelyTransfer, _yearly, ...t }) =>
+      .map(({ suggested_category_name, suggested_hit_count, likelyTransfer, _yearly, ...t }) =>
         ({
           ...t,
           bank_account_id: acctId,

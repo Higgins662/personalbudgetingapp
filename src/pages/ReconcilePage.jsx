@@ -21,7 +21,7 @@ export default function ReconcilePage({ budget, transactions: txHook, periods, o
           loading: txLoading, reload: reloadTx } = txHook
   const { user }                              = useAuth()
   const { rules: personalRules, learnRule }   = usePayeeRules()
-  const { patterns: globalPatterns, contribute } = useGlobalPatterns()
+  const { suggest: suggestCategories, contribute } = useGlobalPatterns()
 
   const fileRef = useRef(null)
   const [stage,        setStage]        = useState('bank')
@@ -134,7 +134,7 @@ export default function ReconcilePage({ budget, transactions: txHook, periods, o
     [categories]
   )
 
-  function handleBuildPreview() {
+  async function handleBuildPreview() {
     const splitMode = colMap.amountSign === 'split'
     if (!colMap.dateCol || !colMap.descCol) {
       setError('Please select Date and Description columns.'); return
@@ -152,7 +152,10 @@ export default function ReconcilePage({ budget, transactions: txHook, periods, o
     const txNormal     = tagged.filter(t => !t.likelyTransfer)
     setTransfers(txTransfers)
     setExcludedTransfers(new Set(txTransfers.map((_, i) => i)))
-    const matched = autoMatch(txNormal, allExpenses, personalRules, globalPatterns, 0.4, systemCategoryIds)
+    // Crowd-sourced suggestions are looked up server-side; an empty Map on
+    // failure just means no 'Others categorize this as ...' hints.
+    const globalSuggestions = await suggestCategories(txNormal.map(t => t.description))
+    const matched = autoMatch(txNormal, allExpenses, personalRules, globalSuggestions, 0.4, systemCategoryIds)
     setPreview(matched)
     setStage('preview'); setError('')
   }
@@ -201,7 +204,7 @@ export default function ReconcilePage({ budget, transactions: txHook, periods, o
       await updateBankAccount(acctId, { col_date: colMap.dateCol, col_desc: colMap.descCol, col_amount: colMap.amountCol, amount_sign: colMap.amountSign })
     }
     const normalToInsert = preview.filter(t => !t._skip)
-      .map(({ _showAssignFor, suggested_category_name, suggested_pattern, suggested_hit_count, matched_source, likelyTransfer, ...t }) =>
+      .map(({ _showAssignFor, suggested_category_name, suggested_hit_count, matched_source, likelyTransfer, ...t }) =>
         ({ ...t, bank_account_id: acctId }))
     const transfersToInsert = transfers.filter((_, i) => !excludedTransfers.has(i))
       .map(({ likelyTransfer, matched_source, ...t }) => ({ ...t, bank_account_id: acctId, ignored: false }))

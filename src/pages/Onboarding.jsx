@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { useGlobalPatterns } from '../hooks/useGlobalPatterns'
@@ -59,7 +59,7 @@ const BANK_TIPS = [
 
 export default function Onboarding() {
   const { user } = useAuth()
-  const { patterns: globalPatterns } = useGlobalPatterns()
+  const { suggest: suggestCategories } = useGlobalPatterns()
   const navigate  = useNavigate()
 
   const [step,    setStep]    = useState(1)
@@ -101,6 +101,19 @@ export default function Onboarding() {
     ), [pendingBanks])
 
   const debitTx = allTransactions.filter(t => t.amount < 0)
+
+  // Crowd-sourced category suggestions for these payees, looked up server-side.
+  // null = still loading, so the expense step doesn't pre-fill from fuzzy
+  // matches first and then never let the better suggestion in. suggest()
+  // resolves to an empty Map on failure, so this can't stay null forever.
+  const [globalSuggestions, setGlobalSuggestions] = useState(null)
+  useEffect(() => {
+    let alive = true
+    setGlobalSuggestions(null)
+    suggestCategories(allTransactions.filter(t => t.amount < 0).map(t => t.description))
+      .then(map => { if (alive) setGlobalSuggestions(map) })
+    return () => { alive = false }
+  }, [allTransactions, suggestCategories])
 
   function canAdvanceFrom(s) { return true }
 
@@ -405,7 +418,7 @@ export default function Onboarding() {
                 categories={categories}
                 assignments={assignments}
                 yearlyKeys={yearlyKeys}
-                globalPatterns={globalPatterns}
+                globalSuggestions={globalSuggestions}
                 onChange={setAssignments}
                 onSetYearly={handleAutoSetYearly}
                 onToggleYearly={handleToggleYearly}
