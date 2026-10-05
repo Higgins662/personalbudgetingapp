@@ -247,7 +247,7 @@ DECLARE
   v_item           RECORD;
   v_variance_pct   numeric;
 BEGIN
-  IF auth.uid() <> p_user_id THEN RAISE EXCEPTION 'Unauthorized'; END IF;
+  IF auth.uid() IS DISTINCT FROM p_user_id THEN RAISE EXCEPTION 'Unauthorized'; END IF;
 
   SELECT id INTO v_period_id
   FROM budget_periods
@@ -310,7 +310,7 @@ DECLARE
   v_period_type text;
   v_period_id   uuid;
 BEGIN
-  IF auth.uid() <> p_user_id THEN RAISE EXCEPTION 'Unauthorized'; END IF;
+  IF auth.uid() IS DISTINCT FROM p_user_id THEN RAISE EXCEPTION 'Unauthorized'; END IF;
   v_period_type := CASE WHEN p_frequency = 'annual' THEN 'yearly' ELSE 'monthly' END;
   SELECT id INTO v_period_id
   FROM budget_periods
@@ -344,7 +344,7 @@ DECLARE
   v_unmatched       int := 0;
   v_unmatched_total numeric := 0;
 BEGIN
-  IF auth.uid() <> p_user_id THEN RAISE EXCEPTION 'Unauthorized'; END IF;
+  IF auth.uid() IS DISTINCT FROM p_user_id THEN RAISE EXCEPTION 'Unauthorized'; END IF;
 
   -- Expense debits: apply each to the period its own date falls in.
   -- Monthly items → that month's period; annual items → that year's period.
@@ -435,7 +435,7 @@ DECLARE
   v_tx_deleted  int := 0;
   v_items_reset int := 0;
 BEGIN
-  IF auth.uid() <> p_user_id THEN RAISE EXCEPTION 'Unauthorized'; END IF;
+  IF auth.uid() IS DISTINCT FROM p_user_id THEN RAISE EXCEPTION 'Unauthorized'; END IF;
   v_month_start := COALESCE(p_month_start, date_trunc('month', now())::date);
   v_month_end   := (v_month_start + INTERVAL '1 month - 1 day')::date;
 
@@ -478,7 +478,7 @@ DECLARE
   v_rules_deleted   int := 0;
   v_cats_deleted    int := 0;
 BEGIN
-  IF auth.uid() <> p_user_id THEN RAISE EXCEPTION 'Unauthorized'; END IF;
+  IF auth.uid() IS DISTINCT FROM p_user_id THEN RAISE EXCEPTION 'Unauthorized'; END IF;
   DELETE FROM transactions   WHERE user_id = p_user_id; GET DIAGNOSTICS v_tx_deleted = ROW_COUNT;
   DELETE FROM period_items   WHERE user_id = p_user_id; GET DIAGNOSTICS v_items_deleted = ROW_COUNT;
   DELETE FROM budget_periods WHERE user_id = p_user_id; GET DIAGNOSTICS v_periods_deleted = ROW_COUNT;
@@ -510,7 +510,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  IF auth.uid() <> p_user_id THEN RAISE EXCEPTION 'Unauthorized'; END IF;
+  IF auth.uid() IS DISTINCT FROM p_user_id THEN RAISE EXCEPTION 'Unauthorized'; END IF;
   DELETE FROM transactions   WHERE user_id = p_user_id;
   DELETE FROM payee_rules    WHERE user_id = p_user_id;
   DELETE FROM bank_accounts  WHERE user_id = p_user_id;

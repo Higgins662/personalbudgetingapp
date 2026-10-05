@@ -15,7 +15,8 @@
 
 CREATE TABLE IF NOT EXISTS recurring_due_days (
   id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id    uuid REFERENCES auth.users NOT NULL,
+  -- CASCADE so account deletion (delete_user_account) can remove the login.
+  user_id    uuid REFERENCES auth.users ON DELETE CASCADE NOT NULL,
   pattern    text NOT NULL,
   due_day    int CHECK (due_day IS NULL OR (due_day BETWEEN 1 AND 31)),
   created_at timestamptz DEFAULT now(),

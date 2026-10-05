@@ -26,7 +26,7 @@ DECLARE
   v_reversed        boolean := false;
   v_applied_new     boolean := false;
 BEGIN
-  IF auth.uid() <> p_user_id THEN
+  IF auth.uid() IS DISTINCT FROM p_user_id THEN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
 

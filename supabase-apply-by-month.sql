@@ -31,7 +31,7 @@ DECLARE
   v_unmatched       int := 0;
   v_unmatched_total numeric := 0;
 BEGIN
-  IF auth.uid() <> p_user_id THEN RAISE EXCEPTION 'Unauthorized'; END IF;
+  IF auth.uid() IS DISTINCT FROM p_user_id THEN RAISE EXCEPTION 'Unauthorized'; END IF;
 
   -- Expense debits: apply each to the period its own date falls in.
   -- Monthly items → that month's period; annual items → that year's period.

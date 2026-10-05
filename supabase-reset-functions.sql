@@ -18,7 +18,7 @@ DECLARE
   v_cats_deleted    int := 0;
   v_banks_deleted   int := 0;
 BEGIN
-  IF auth.uid() <> p_user_id THEN RAISE EXCEPTION 'Unauthorized'; END IF;
+  IF auth.uid() IS DISTINCT FROM p_user_id THEN RAISE EXCEPTION 'Unauthorized'; END IF;
   DELETE FROM transactions   WHERE user_id = p_user_id; GET DIAGNOSTICS v_tx_deleted = ROW_COUNT;
   DELETE FROM period_items   WHERE user_id = p_user_id; GET DIAGNOSTICS v_items_deleted = ROW_COUNT;
   DELETE FROM budget_periods WHERE user_id = p_user_id; GET DIAGNOSTICS v_periods_deleted = ROW_COUNT;

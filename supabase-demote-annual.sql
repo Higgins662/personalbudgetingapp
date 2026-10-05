@@ -28,7 +28,7 @@ DECLARE
   v_month_period    uuid;
   v_moved           int := 0;
 BEGIN
-  IF auth.uid() <> p_user_id THEN
+  IF auth.uid() IS DISTINCT FROM p_user_id THEN
     RAISE EXCEPTION 'Unauthorized';
   END IF;
 
